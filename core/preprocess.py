@@ -117,36 +117,46 @@ class CausalSmoother(BaseEstimator, TransformerMixin):
         X = np.asarray(X, dtype=float)
         if X.ndim == 1:
             X = X.reshape(-1, 1)
+
         w = max(1, int(self.window))
         out = np.empty_like(X, dtype=float)
-        for j in range(X.shape[1]):
-            col = pd.Series(X[:, j])
-            if self.method == "Média móvel":
-                out[:, j] = col.rolling(w, min_periods=1).mean().to_numpy()
-            elif self.method == "Mediana móvel":
-                out[:, j] = col.rolling(w, min_periods=1).median().to_numpy()
-            elif self.method.startswith("Savitzky"):
-                # Savitzky-Golay causal: usa somente amostras atuais/passadas.
-                # A janela é "trailing"; não há acesso a t+1, t+2, ...
-                # ``interpolate`` e ``bfill`` usam uma observação futura em
-                # lacunas. Mantemos apenas o último valor observado; lacunas
-                # iniciais seguem para o imputer, ajustado no treino.
-                v = col.ffill().to_numpy()
+        if self.method == "Média móvel":
+            for j in range(X.shape[1]):
+                out[:, j] = pd.Series(X[:, j]).rolling(w, min_periods=1).mean().to_numpy()
+            return out
+        if self.method == "Mediana móvel":
+            for j in range(X.shape[1]):
+                out[:, j] = pd.Series(X[:, j]).rolling(w, min_periods=1).median().to_numpy()
+            return out
+
+        if self.method.startswith("Savitzky"):
+            for j in range(X.shape[1]):
+                v = pd.Series(X[:, j]).ffill().to_numpy(dtype=float)
                 if len(v) <= 2:
                     out[:, j] = v
                     continue
-                poly = min(2, max(0, len(v) - 1))
+
+                ww = w if w % 2 else w - 1
+                ww = max(1, min(ww, len(v)))
+                degree = min(2, max(0, ww - 1))
+                if ww <= degree:
+                    out[:, j] = v
+                    continue
+
+                coeff = savgol_coeffs(ww, degree, pos=ww - 1, use="dot")
                 for i in range(len(v)):
-                    max_w = min(w, i + 1)
-                    # janela ímpar; no início, reduz para 1/3/5...
-                    ww = max_w if max_w % 2 else max_w - 1
-                    if ww <= poly:
+                    span = min(ww, i + 1)
+                    if span <= degree:
                         out[i, j] = v[i]
                         continue
-                    coeff = savgol_coeffs(ww, poly, pos=ww - 1, use="dot")
-                    out[i, j] = np.dot(coeff, v[i - ww + 1:i + 1])
-            else:
-                out[:, j] = X[:, j]
+                    start = i - span + 1
+                    segment = v[start:i + 1]
+                    if len(segment) < span:
+                        segment = np.pad(segment, (span - len(segment), 0), constant_values=segment[0])
+                    out[i, j] = np.dot(coeff[-span:], segment)
+            return out
+
+        out[:] = X
         return out
 
 
