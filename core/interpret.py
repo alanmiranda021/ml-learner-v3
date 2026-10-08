@@ -66,12 +66,21 @@ def try_shap(model, X_sample: pd.DataFrame, task: str = "regression",
         Xt = np.asarray(Xt)
 
         try:
-            explainer = shap.TreeExplainer(est)
+            if hasattr(est, "estimators_") and len(est.estimators_) > 0:
+                est_for_shap = est.estimators_[0]
+            else:
+                est_for_shap = est
+
+            explainer = shap.TreeExplainer(est_for_shap)
             values = explainer.shap_values(Xt)
         except Exception:
             # Fallback genérico, ainda no ESPAÇO TRANSFORMADO.
-            predict_fn = (est.predict_proba if task == "classification"
-                          and hasattr(est, "predict_proba") else est.predict)
+            if hasattr(est, "estimators_") and len(est.estimators_) > 0:
+                est_for_shap = est.estimators_[0]
+            else:
+                est_for_shap = est
+            predict_fn = (est_for_shap.predict_proba if task == "classification"
+                          and hasattr(est_for_shap, "predict_proba") else est_for_shap.predict)
             background = Xt[:min(50, len(Xt))]
             explainer = shap.Explainer(predict_fn, background)
             values = explainer(Xt).values

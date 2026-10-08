@@ -92,20 +92,24 @@ if df_test is not None:
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.header("2) Problema")
-    target = st.selectbox("Variável alvo (y)", df.columns, index=len(df.columns) - 1)
-    # Numérico é regressão por padrão: cardinalidade baixa não basta para
-    # chamar algo de classificação (ex.: Beaufort 0–9 é um alvo de regressão
-    # possível). O usuário pode selecionar Classificação manualmente.
-    task_guess = ("classification"
-                  if not pd.api.types.is_numeric_dtype(df[target])
-                  else "regression")
+    target = st.multiselect("Variáveis alvo (Y) - Multi-target/Surrogate", df.columns, default=[df.columns[-1]])
+    if not target:
+        st.warning("Selecione ao menos uma variável alvo.")
+        st.stop()
+    
+    if len(target) > 1:
+        task_guess = "multi_regression"
+    else:
+        task_guess = ("classification"
+                      if not pd.api.types.is_numeric_dtype(df[target[0]])
+                      else "regression")
     task = st.radio("Tipo",
-                    ["regression", "classification"],
-                    index=["regression", "classification"].index(task_guess),
-                    format_func=lambda t: "Regressão" if t == "regression" else "Classificação")
+                    ["regression", "classification", "multi_regression"],
+                    index=["regression", "classification", "multi_regression"].index(task_guess),
+                    format_func=lambda t: {"regression": "Regressão", "classification": "Classificação", "multi_regression": "Surrogate (Múltiplas Saídas)"}[t])
     feats = st.multiselect("Características (X)",
-                           [c for c in df.columns if c != target],
-                           default=[c for c in df.columns if c != target])
+                           [c for c in df.columns if c not in target],
+                           default=[c for c in df.columns if c not in target])
 
 if not feats:
     st.warning("Selecione ao menos uma característica.")
@@ -119,9 +123,9 @@ if use_test_file and df_test is not None:
         st.stop()
 
 # Aviso de vazamento (correlação alta)
-if task == "regression" and pd.api.types.is_numeric_dtype(df[target]):
+if task in ("regression", "multi_regression") and all(pd.api.types.is_numeric_dtype(df[t]) for t in target):
     corr = (df[feats].select_dtypes("number")
-            .corrwith(df[target]).abs().sort_values(ascending=False))
+            .corrwith(df[target[0]]).abs().sort_values(ascending=False))
     if len(corr) and corr.iloc[0] > 0.98:
         st.warning(f"⚠️ '{corr.index[0]}' tem correlação {corr.iloc[0]:.3f} "
                    f"com o alvo — possível vazamento de dados.")
@@ -168,7 +172,7 @@ with st.sidebar:
 
     st.header("5) Semente e algoritmos")
     seed = st.number_input("Semente aleatória", 0, 9999, 42)
-    zoo = REGRESSION if task == "regression" else CLASSIFICATION
+    zoo = REGRESSION if task in ("regression", "multi_regression") else CLASSIFICATION
     chosen = st.multiselect("Modelos", list(zoo), default=list(zoo)[:4])
     tune = st.checkbox("Otimizar hiperparâmetros (GridSearch, CV interna)", value=False)
     sampler_name = "Nenhum"
@@ -201,7 +205,7 @@ _config_payload = repr({
     "columns": tuple(map(str, df.columns)),
     "data_signature": _frame_signature(df),
     "test_signature": _frame_signature(df_test),
-    "target": target,
+    "target": tuple(target),
     "task": task,
     "feats": tuple(feats),
     "winsor": winsor,
@@ -240,19 +244,25 @@ def _cached_shap(model_bytes, frame, task_name, max_samples, seed_value):
                     max_samples=max_samples, seed=seed_value)
 
 @st.cache_data(show_spinner=False)
-def _cached_permutation(model_bytes, frame, y_values, seed_value):
+def _cached_permutation(model_bytes, frame, y_values, seed_value, is_multi=False):
     import io as _io
     fitted = joblib.load(_io.BytesIO(model_bytes))
-    y_series = pd.Series(y_values, index=frame.index)
-    return permutation_importance_df(fitted, frame, y_series,
+    if is_multi or (hasattr(y_values, 'ndim') and y_values.ndim > 1 and y_values.shape[1] > 1):
+        y_target = pd.DataFrame(y_values, index=frame.index)
+    else:
+        y_target = pd.Series(y_values, index=frame.index)
+    return permutation_importance_df(fitted, frame, y_target,
                                      n_repeats=8, seed=seed_value)
 
 # ---------------------------------------------------------------------------
 # 4. EDA + OUTLIERS MULTIVARIADOS
 # ---------------------------------------------------------------------------
-work = df.dropna(subset=[target]).copy()
+work = df.dropna(subset=target).copy()
 X = work[feats]
-y = work[target]
+if task == "multi_regression" or len(target) > 1:
+    y = work[target]
+else:
+    y = work[target[0]]
 num_cols = X.select_dtypes("number").columns.tolist()
 cat_cols = [c for c in feats if c not in num_cols]
 
@@ -301,12 +311,15 @@ tab_eda, tab_train, tab_diag, tab_export = st.tabs([
 
 with tab_eda:
     st.subheader("Estatística descritiva")
-    st.dataframe(_cached_eda(work[[target] + feats]), use_container_width=True)
+    st.dataframe(_cached_eda(work[target + feats]), use_container_width=True)
     st.subheader("Distribuição do alvo")
-    st.plotly_chart(
-        px.histogram(work, x=target, marginal="box", title=f"Distribuição de {target}"),
-        use_container_width=True,
-    )
+    if len(target) == 1:
+        st.plotly_chart(
+            px.histogram(work, x=target[0], marginal="box", title=f"Distribuição de {target[0]}"),
+            use_container_width=True,
+        )
+    else:
+        st.info("Distribuição individual omitida para multi-target nesta visualização rápida.")
 
 # ---------------------------------------------------------------------------
 # 6. TREINO
@@ -491,7 +504,8 @@ with tab_diag:
                 buf_model = io.BytesIO()
                 joblib.dump(e["model"], buf_model)
                 imp_df = _cached_permutation(
-                    buf_model.getvalue(), e["X_test"], e["y_test"], int(seed)
+                    buf_model.getvalue(), e["X_test"], e["y_test"], int(seed),
+                    is_multi=(task == "multi_regression")
                 )
             if imp_df is not None:
                 st.plotly_chart(
@@ -544,7 +558,7 @@ with tab_export:
                 language="latex")
 
         st.markdown("### 2. Estatística descritiva (LaTeX)")
-        eda_df = _cached_eda(work[[target] + feats])
+        eda_df = _cached_eda(work[target + feats])
         st.code(to_latex_table(eda_df, "Análise exploratória"), language="latex")
 
         output = io.BytesIO()

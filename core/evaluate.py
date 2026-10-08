@@ -16,6 +16,7 @@ from sklearn.model_selection import (GridSearchCV, GroupKFold, KFold,
                                      TimeSeriesSplit, cross_validate,
                                      train_test_split)
 from sklearn.pipeline import Pipeline
+from sklearn.multioutput import MultiOutputRegressor
 
 REG_SCORING = {"R2": "r2",
                "RMSE": "neg_root_mean_squared_error",
@@ -32,18 +33,30 @@ CLF_SCORING = {"Acurácia": "accuracy",
 def make_pipeline(pre, model, grid=None, tune: bool = False, cv_inner: int = 5,
                   task: str = "regression", sampler=None):
     """Monta Pipeline (ou ImbPipeline se houver sampler) e envolve em GridSearchCV."""
+    model_instance = clone(model)
+    if task == "multi_regression":
+        if not hasattr(model_instance, "_get_tags") or not model_instance._get_tags().get("multioutput"):
+            model_instance = MultiOutputRegressor(model_instance)
+            
     if sampler is not None:
         from imblearn.pipeline import Pipeline as ImbPipeline
         pipe = ImbPipeline([("pre", clone(pre)), ("samp", sampler),
-                            ("model", clone(model))])
+                            ("model", model_instance)])
     else:
-        pipe = Pipeline([("pre", clone(pre)), ("model", clone(model))])
+        pipe = Pipeline([("pre", clone(pre)), ("model", model_instance)])
+        
     if tune and grid:
-        scoring = "r2" if task == "regression" else "f1_macro"
-        pipe = GridSearchCV(pipe,
-                            {f"model__{k}": v for k, v in grid.items()},
-                            cv=cv_inner, scoring=scoring, n_jobs=-1,
-                            refit=True)
+        scoring = "r2" if task in ("regression", "multi_regression") else "f1_macro"
+        
+        grid_adj = {}
+        if task == "multi_regression" and isinstance(model_instance, MultiOutputRegressor):
+            for k, v in grid.items():
+                grid_adj[f"model__estimator__{k}"] = v
+        else:
+            for k, v in grid.items():
+                grid_adj[f"model__{k}"] = v
+
+        pipe = GridSearchCV(pipe, grid_adj, cv=cv_inner, scoring=scoring, n_jobs=-1, refit=True)
     return pipe
 
 
@@ -51,9 +64,9 @@ def make_pipeline(pre, model, grid=None, tune: bool = False, cv_inner: int = 5,
 # Métricas
 # ---------------------------------------------------------------------------
 def reg_metrics(y, p):
-    return {"R2": float(r2_score(y, p)),
-            "RMSE": float(np.sqrt(mean_squared_error(y, p))),
-            "MAE": float(mean_absolute_error(y, p))}
+    return {"R2": float(r2_score(y, p, multioutput="uniform_average")),
+            "RMSE": float(np.sqrt(mean_squared_error(y, p, multioutput="uniform_average"))),
+            "MAE": float(mean_absolute_error(y, p, multioutput="uniform_average"))}
 
 
 def clf_metrics(y, p):
