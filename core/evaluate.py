@@ -27,6 +27,27 @@ CLF_SCORING = {"Acurácia": "accuracy",
                "Recall (macro)": "recall_macro"}
 
 
+def _validate_cv_config(k: int, data_length: int, *, kind: str, groups=None, labels=None):
+    """Valida limites de `k` para evitar erros pouco informativos do sklearn."""
+    if k < 2:
+        raise ValueError(f"{kind} exige k >= 2; recebeu k={k}.")
+    if kind == "timeseries" and k >= data_length:
+        raise ValueError(f"TimeSeriesSplit exige k < n_amostras ({data_length}); recebeu k={k}.")
+    if kind == "groups" and groups is not None:
+        n_unique_groups = len(pd.unique(groups))
+        if k > n_unique_groups:
+            raise ValueError(
+                f"GroupKFold/StratifiedGroupKFold exige k <= nº de grupos ({n_unique_groups}); "
+                f"recebeu k={k}."
+            )
+    if kind == "classification" and labels is not None:
+        n_classes = len(pd.unique(labels))
+        if k > n_classes:
+            raise ValueError(
+                f"CV estratificada exige k <= nº de classes ({n_classes}); recebeu k={k}."
+            )
+
+
 # ---------------------------------------------------------------------------
 # Construção de pipelines (com ou sem sampler)
 # ---------------------------------------------------------------------------
@@ -173,12 +194,14 @@ def evaluate_test_set(pipe, X_train, y_train, X_test, y_test, task):
 # ---------------------------------------------------------------------------
 def cross_val(pipe, X, y, task, k: int = 5, repeats: int = 1, seed: int = 42):
     if task == "classification":
+        _validate_cv_config(k, len(y), kind="classification", labels=y)
         cv = (RepeatedStratifiedKFold(n_splits=k, n_repeats=repeats,
                                       random_state=seed)
               if repeats > 1 else
               StratifiedKFold(k, shuffle=True, random_state=seed))
         sc = CLF_SCORING
     else:
+        _validate_cv_config(k, len(y), kind="regression")
         cv = (RepeatedKFold(n_splits=k, n_repeats=repeats, random_state=seed)
               if repeats > 1 else
               KFold(k, shuffle=True, random_state=seed))
@@ -198,9 +221,11 @@ def cross_val(pipe, X, y, task, k: int = 5, repeats: int = 1, seed: int = 42):
 def group_cross_val(pipe, X, y, groups, task, k: int = 5, seed: int = 42):
     """CV respeitando grupos (ex.: velocidade, período, navio)."""
     if task == "classification":
+        _validate_cv_config(k, len(y), kind="groups", groups=groups, labels=y)
         cv = StratifiedGroupKFold(n_splits=k, shuffle=True, random_state=seed)
         sc = CLF_SCORING
     else:
+        _validate_cv_config(k, len(y), kind="groups", groups=groups)
         cv = GroupKFold(n_splits=k)
         sc = REG_SCORING
     res = cross_validate(pipe, X, y, groups=groups, cv=cv, scoring=sc, n_jobs=-1)
@@ -216,6 +241,7 @@ def group_cross_val(pipe, X, y, groups, task, k: int = 5, seed: int = 42):
 # TimeSeriesSplit — slide 8 (períodos)
 # ---------------------------------------------------------------------------
 def timeseries_cv(pipe, X, y, task, k: int = 5):
+    _validate_cv_config(k, len(y), kind="timeseries")
     cv = TimeSeriesSplit(n_splits=k)
     sc = REG_SCORING if task == "regression" else CLF_SCORING
     res = cross_validate(pipe, X, y, cv=cv, scoring=sc, n_jobs=-1)
@@ -239,9 +265,11 @@ def nested_cv(pipe, X, y, task, k_outer: int = 5, k_inner: int = 3,
     seleciona hiperparâmetros.
     """
     if task == "classification":
+        _validate_cv_config(k_outer, len(y), kind="classification", labels=y)
         cv_outer = StratifiedKFold(k_outer, shuffle=True, random_state=seed)
         sc = CLF_SCORING
     else:
+        _validate_cv_config(k_outer, len(y), kind="regression")
         cv_outer = KFold(k_outer, shuffle=True, random_state=seed)
         sc = REG_SCORING
     res = cross_validate(pipe, X, y, cv=cv_outer, scoring=sc, n_jobs=-1,
