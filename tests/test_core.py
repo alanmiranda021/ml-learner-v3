@@ -7,6 +7,7 @@ from core.preprocess import (MADScaler, TanhScaler, Winsorizer,
                              build_full_pipeline, multivariate_outlier_report)
 from core.evaluate import holdout, make_pipeline, cross_val
 from core.io import load_table, validate_test_columns
+from core.analysis import vif_table
 from core.models import REGRESSION
 
 
@@ -103,3 +104,10 @@ def test_load_hdf5_table():
         handle.create_dataset("dados", data=np.array([[1, 2], [3, 4]]))
     frame = load_table("dados.h5", raw.getvalue())
     assert frame.shape == (2, 2)
+
+
+def test_vif_table_does_not_require_statsmodels():
+    x = np.arange(20, dtype=float)
+    table = vif_table(pd.DataFrame({"x": x, "almost_x": x * 2 + 0.01, "z": x ** 2}))
+    assert set(table["Variável"]) == {"x", "almost_x", "z"}
+    assert (table["VIF"] > 1).all()

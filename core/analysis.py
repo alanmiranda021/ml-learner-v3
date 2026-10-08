@@ -33,17 +33,27 @@ def vif_table(X: pd.DataFrame) -> pd.DataFrame:
     """Variance Inflation Factor para detectar multicolinearidade.
 
     Regra prática: VIF > 10 indica multicolinearidade problemática.
-    Requer `statsmodels`.
+    Calculado com NumPy para não introduzir a dependência extra ``statsmodels``.
     """
-    from statsmodels.stats.outliers_influence import variance_inflation_factor
     num = X.select_dtypes(include=[np.number]).dropna()
     if num.shape[1] < 2:
         return pd.DataFrame(columns=["Variável", "VIF"])
-    # Adiciona constante para o cálculo do VIF
-    num_const = num.assign(_const=1.0)
-    rows = [{"Variável": c,
-             "VIF": float(variance_inflation_factor(num_const.values, i))}
-            for i, c in enumerate(num_const.columns) if c != "_const"]
+
+    values = num.to_numpy(dtype=float)
+    rows = []
+    for index, column in enumerate(num.columns):
+        target = values[:, index]
+        predictors = np.delete(values, index, axis=1)
+        design = np.column_stack([np.ones(len(target)), predictors])
+        fitted = design @ np.linalg.lstsq(design, target, rcond=None)[0]
+        total_ss = float(np.sum((target - target.mean()) ** 2))
+        residual_ss = float(np.sum((target - fitted) ** 2))
+        if total_ss <= np.finfo(float).eps:
+            vif = np.inf
+        else:
+            r_squared = 1.0 - residual_ss / total_ss
+            vif = np.inf if r_squared >= 1.0 - 1e-12 else 1.0 / (1.0 - r_squared)
+        rows.append({"Variável": column, "VIF": float(vif)})
     return pd.DataFrame(rows).sort_values("VIF", ascending=False).round(3)
 
 
