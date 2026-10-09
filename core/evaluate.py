@@ -30,6 +30,30 @@ CLF_SCORING = {"Acurácia": "accuracy",
 # ---------------------------------------------------------------------------
 # Construção de pipelines (com ou sem sampler)
 # ---------------------------------------------------------------------------
+def _single_thread_model(model):
+    """Evita oversubscription quando o estimador interno suporta paralelismo."""
+    candidates = []
+    current = model
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        candidates.append(current)
+        current = getattr(current, "estimator", None)
+
+    for estimator in candidates:
+        if hasattr(estimator, "n_jobs"):
+            try:
+                estimator.n_jobs = 1
+            except Exception:
+                pass
+        if hasattr(estimator, "nthread"):
+            try:
+                estimator.nthread = 1
+            except Exception:
+                pass
+    return model
+
+
 def make_pipeline(pre, model, grid=None, tune: bool = False, cv_inner: int = 5,
                   task: str = "regression", sampler=None):
     """Monta Pipeline (ou ImbPipeline se houver sampler) e envolve em GridSearchCV."""
@@ -37,17 +61,19 @@ def make_pipeline(pre, model, grid=None, tune: bool = False, cv_inner: int = 5,
     if task == "multi_regression":
         if not hasattr(model_instance, "_get_tags") or not model_instance._get_tags().get("multioutput"):
             model_instance = MultiOutputRegressor(model_instance)
-            
+
+    model_instance = _single_thread_model(model_instance)
+
     if sampler is not None:
         from imblearn.pipeline import Pipeline as ImbPipeline
         pipe = ImbPipeline([("pre", clone(pre)), ("samp", sampler),
                             ("model", model_instance)])
     else:
         pipe = Pipeline([("pre", clone(pre)), ("model", model_instance)])
-        
+
     if tune and grid:
         scoring = "r2" if task in ("regression", "multi_regression") else "f1_macro"
-        
+
         grid_adj = {}
         if task == "multi_regression" and isinstance(model_instance, MultiOutputRegressor):
             for k, v in grid.items():

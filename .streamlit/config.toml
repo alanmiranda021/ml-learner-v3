@@ -1,5 +1,5 @@
 [server]
-# O app é incorporado no GitHub Pages. A origem explícita preserva a proteção
-# CORS/XSRF e permite que o file_uploader opere dentro do iframe.
-corsAllowedOrigins = ["https://alanmiranda021.github.io"]
-xsrfCookieSameSite = "none"
+# Configuração padrão para a execução no Streamlit Cloud/HTTPS.
+# Não forçar CORS/XSRF de origem externa aqui, porque o app não é
+# incorporado em outra página e isso pode bloquear cookies e uploads.
+headless = true
