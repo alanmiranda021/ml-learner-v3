@@ -9,12 +9,13 @@ from core.env import IN_BROWSER
 from core.evaluate import clf_metrics, cross_val, make_pipeline, reg_metrics
 from core.models import CLASSIFICATION, REGRESSION
 from core.preprocess import build_preprocessor
+from core.task_config import suggest_task
 
 FAST = {"Regressão Linear", "Ridge", "Lasso", "Árvore de Decisão", "KNN", "SVR (RBF)", "Random Forest",
         "Regressão Logística", "Naive Bayes", "SVM (RBF)", "Gradient Boosting"}  # MLP fica fora do modo rápido
 
 
-def detect(df: pd.DataFrame, target: str | None = None):
+def detect(df: pd.DataFrame, target: str | None = None, task_type=None, features=None):
     """Escolhe alvo (última coluna por padrão), tipo de problema e colunas úteis."""
     log = []
     df = df.copy()
@@ -22,10 +23,12 @@ def detect(df: pd.DataFrame, target: str | None = None):
     target = target or df.columns[-1]
     log.append(f"Alvo: '{target}'")
     y = df[target]
-    task = "classification" if (not pd.api.types.is_numeric_dtype(y) or y.nunique() <= 15) else "regression"
+    guess, reason = suggest_task(y)
+    task = task_type or guess
+    log.append(reason)
     log.append("Tipo: " + ("classificação" if task == "classification" else "regressão"))
     feats = []
-    for c in df.columns.drop(target):
+    for c in (features if features is not None else df.columns.drop(target)):
         s = df[c]
         if s.nunique(dropna=True) <= 1:
             log.append(f"Descartada '{c}' (constante)"); continue
@@ -34,11 +37,9 @@ def detect(df: pd.DataFrame, target: str | None = None):
         if not pd.api.types.is_numeric_dtype(s) and s.nunique() > 0.5 * len(s):
             log.append(f"Descartada '{c}' (texto tipo ID)"); continue
         feats.append(c)
-    if task == "regression":
-        num = df[feats].select_dtypes("number")
-        corr = num.corrwith(y).abs()
-        for c in corr[corr > 0.98].index:
-            feats.remove(c); log.append(f"Descartada '{c}' (correlação {corr[c]:.3f} com o alvo: vazamento)")
+    dropped = int(y.isna().sum())
+    if dropped:
+        log.append(f"Linhas sem alvo excluídas: {dropped}.")
     return df.dropna(subset=[target]), target, task, feats, log
 
 
@@ -79,7 +80,7 @@ def _label(cfg):
     return f"{cfg['scaler']}, outliers={'limitados' if cfg['winsor'] else 'mantidos'}" + (", PCA 95%" if cfg["pca"] else "")
 
 
-def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=None, budget_s=None, max_sel_rows=None):
+def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=None, budget_s=None, max_sel_rows=None, task_config=None):
     """budget_s: orçamento de tempo (s). O sistema pula modelos pesados / desliga a otimização se estourar."""
     t0 = time.time()
     notify = progress
@@ -94,7 +95,14 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     # navegador (Pyodide) roda em 1 thread e é bem mais lento: limites mais enxutos
     max_sel_rows = max_sel_rows or (2000 if IN_BROWSER else (4000 if rapido else 8000))
     budget_s = budget_s or (150 if mode == "rápido" else 900)
-    df, target, task, feats, log = detect(df, target)
+    if task_config is not None:
+        task_config.validate(df)
+        target, seed = task_config.target, task_config.random_state
+    df, target, task, feats, log = detect(df, target,
+        task_config.task_type if task_config else None,
+        task_config.features if task_config else None)
+    if not feats:
+        raise ValueError("Nenhum preditor válido; selecione as colunas explicitamente.")
     adj = []  # decisões de auto-ajuste
     X, y = df[feats], df[target]
     num = X.select_dtypes("number").columns.tolist()
@@ -102,8 +110,11 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     zoo = REGRESSION if task == "regression" else CLASSIFICATION
     names = [n for n in ORDER if n in zoo and (mode == "completo" or n in FAST)]
 
-    strat = y if task == "classification" else None
-    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=test_size, random_state=seed, stratify=strat)
+    from core.splitters import holdout_indices
+    groups = df[task_config.group_column].to_numpy() if task_config and task_config.split_strategy == "group" else None
+    times = df[task_config.time_column].to_numpy() if task_config and task_config.split_strategy == "time" else None
+    tr, te = holdout_indices(y, task, test_size, seed, groups, times)
+    Xtr, Xte, ytr, yte = X.iloc[tr], X.iloc[te], y.iloc[tr], y.iloc[te]
     key = "R2" if task == "regression" else "F1 (macro)"
     reps = 1 if (rapido and IN_BROWSER) else (2 if rapido else 3)
 
@@ -112,9 +123,10 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
                f"{prof['outlier_frac']:.1%} de valores atípicos" + (f", balanceamento {prof['imbalance']:.2f}" if task == 'classification' else ""))
 
     # adaptação ao tamanho: seleção em subamostra, treino final com tudo
-    if len(Xtr) > max_sel_rows:
-        idx = Xtr.sample(max_sel_rows, random_state=seed).index
-        Xs, ys = Xtr.loc[idx], ytr.loc[idx]
+    if len(Xtr) > max_sel_rows and groups is None and times is None:
+        idx, _ = train_test_split(np.arange(len(Xtr)), train_size=max_sel_rows,
+                                  random_state=seed, stratify=ytr if task == "classification" else None)
+        Xs, ys = Xtr.iloc[idx], ytr.iloc[idx]
         adj.append(f"Base grande: seleção feita em subamostra de {max_sel_rows} linhas; modelo final treinado com todas.")
     else:
         Xs, ys = Xtr, ytr
@@ -125,7 +137,14 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     cfgs = candidate_configs(prof)
     if rapido:
         cfgs = cfgs[:2] if IN_BROWSER else cfgs[:3]
-    Xc, yc = (Xs.iloc[:1500], ys.iloc[:1500]) if rapido and len(Xs) > 1500 else (Xs, ys)
+    Xc, yc = Xs, ys
+    cv_meta = dict(groups=groups[tr] if groups is not None else None,
+                   times=times[tr] if times is not None else None)
+    if groups is not None or times is not None:
+        reps = 1
+    def inner_cv(k):
+        from core.splitters import cv_indices
+        return cv_indices(ytr, task, k, seed, **cv_meta)
     for cfg_i, cfg in enumerate(cfgs):
         try:
             pre = build_preprocessor(num, cat, cfg["scaler"], cfg["winsor"], 1.5, cfg["pca"])
@@ -138,7 +157,7 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
                                  f"Preparação {cfg_i + 1}/{len(cfgs)} · {model_name} · {text}")
                 scores.append(cross_val(make_pipeline(pre, zoo[model_name][0], task=task),
                                         Xc, yc, task, 3, 1, seed,
-                                        progress=prep_progress if progress else None)[key][0])
+                                        progress=prep_progress if progress else None, **cv_meta)[key][0])
             sc = np.mean(scores)
         except Exception as e:  # auto-recuperação: configuração inviável é descartada
             adj.append(f"Configuração descartada ({_label(cfg)}): {str(e)[:60]}"); continue
@@ -193,7 +212,7 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
                     progress(start + 0.8 * p / len(names),
                              f"Modelo {i + 1}/{len(names)} · {n} · {text}")
             r = cross_val(make_pipeline(pre, m, task=task), Xs, ys, task, 5, use_reps, seed,
-                          progress=model_progress if progress else None)
+                          progress=model_progress if progress else None, **cv_meta)
         except Exception as e:
             adj.append(f"Modelo {n} falhou e foi ignorado: {str(e)[:60]}"); continue
         dt = time.time() - s_
@@ -203,6 +222,8 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
         if progress: progress(0.15 + 0.8 * (i + 1) / len(names), f"Validação concluída: {n}")
     if skipped:
         adj.append("Pulados por orçamento de tempo: " + ", ".join(skipped))
+    if not rows:
+        raise ValueError("Nenhum modelo pôde ser validado; revise tamanho, classes e grupos dos folds.")
     board = pd.DataFrame(rows).sort_values(key, ascending=False).reset_index(drop=True)
 
     best = board.loc[0, "Modelo"]
@@ -215,7 +236,8 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     elif g and not do_tune:
         adj.append(f"Otimização de hiperparâmetros desligada (estimada em {est_tune:.0f}s, acima do orçamento restante).")
     if progress: progress(0.97, f"Ajustando {best}")
-    final = make_pipeline(pre, m, g, tune=do_tune, task=task)
+    final = make_pipeline(pre, m, g, tune=do_tune, task=task,
+                          cv_inner=inner_cv(5) if do_tune else 5)
     final.fit(Xtr, ytr)
     if progress: progress(0.98, "Avaliando o melhor modelo nos dados de teste")
     pred = final.predict(Xte)
@@ -224,7 +246,10 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     return {"task": task, "target": target, "features": feats, "log": log, "adjustments": adj, "config": best_cfg,
             "leaderboard": board, "best": best, "best_params": getattr(final, "best_params_", {}),
             "test_metrics": test, "model": final, "y_true": np.asarray(yte), "y_pred": np.asarray(pred),
-            "n_train": len(Xtr), "n_test": len(Xte), "X_test": Xte, "data": df[feats + [target]], "profile": prof, "seed": seed, "seconds": round(time.time() - t0, 1)}
+            "n_train": len(Xtr), "n_test": len(Xte), "X_train": Xtr, "X_test": Xte,
+            "train_indices": tr.tolist(), "test_indices": te.tolist(),
+            "task_config": task_config.to_dict() if task_config else None,
+            "data": df[feats + [target]], "profile": prof, "seed": seed, "seconds": round(time.time() - t0, 1)}
 
 
 def _md_table(df) -> str:

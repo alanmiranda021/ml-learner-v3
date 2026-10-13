@@ -46,7 +46,10 @@ def _read_csv_robust(raw: bytes) -> pd.DataFrame:
     return df
 
 
-def load_table(name: str, raw: bytes) -> pd.DataFrame:
+def load_table(name: str, raw: bytes, variable=None, orientation="rows") -> pd.DataFrame:
+    from core.data_inspection import MAX_UPLOAD_BYTES
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise ValueError("Arquivo excede o limite de 100 MiB.")
     name = name.lower()
     if name.endswith((".xlsx", ".xlsm", ".xls")):
         df = pd.read_excel(io.BytesIO(raw))
@@ -57,6 +60,9 @@ def load_table(name: str, raw: bytes) -> pd.DataFrame:
     if name.endswith((".csv", ".txt", ".tsv")):
         return _read_csv_robust(raw)
     if name.endswith(".mat"):
+        if variable is not None:
+            from core.data_inspection import mat_to_table
+            return mat_to_table(raw, variable, orientation)
         return _load_mat(raw)
     raise ValueError(f"Formato não suportado: {name}")
 
@@ -135,7 +141,9 @@ def _load_mat(raw: bytes) -> pd.DataFrame:
             arrs = {k: np.array(v).T for k, v in h.items() if isinstance(v, h5py.Dataset) and v.ndim == 2}
         if not arrs:
             raise ValueError("Este .mat v7.3 guarda uma `table`. No MATLAB: writetable(T,'saida.csv') e envie o CSV.")
-        key = max(arrs, key=lambda k: arrs[k].size)
+        if len(arrs) != 1:
+            raise ValueError("MAT contém várias matrizes; selecione a variável explicitamente.")
+        key = next(iter(arrs))
         return pd.DataFrame(arrs[key], columns=[f"x{i+1}" for i in range(arrs[key].shape[1])])
 
     if "__function_workspace__" in m:  # arquivo contém objetos MATLAB (ex.: table)
@@ -148,6 +156,8 @@ def _load_mat(raw: bytes) -> pd.DataFrame:
             if not k.startswith("__") and isinstance(v, np.ndarray) and v.ndim == 2 and v.dtype.kind in "fiu"}
     if not cand:
         raise ValueError("Nenhuma matriz numérica 2D encontrada neste .mat.")
-    key = max(cand, key=lambda k: cand[k].size)
+    if len(cand) != 1:
+        raise ValueError("MAT contém várias matrizes; selecione a variável explicitamente.")
+    key = next(iter(cand))
     arr = cand[key]
     return pd.DataFrame(arr, columns=[f"x{i+1}" for i in range(arr.shape[1])])
