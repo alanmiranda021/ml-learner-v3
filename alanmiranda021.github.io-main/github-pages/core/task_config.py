@@ -59,6 +59,8 @@ class TaskConfig:
             raise ValueError("Split agrupado requer coluna de grupo.")
         if self.split_strategy == "time" and not self.time_column:
             raise ValueError("Split temporal requer coluna de tempo.")
+        if self.signal_config and (self.split_strategy != "group" or not self.group_column):
+            raise ValueError("Atributos de sinais exigem split por aquisição de origem.")
         numeric = df[self.features].select_dtypes("number")
         if np.isinf(numeric.to_numpy(dtype=float)).any():
             raise ValueError("Preditores contêm infinitos; corrija ou converta explicitamente em ausentes.")

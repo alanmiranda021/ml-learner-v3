@@ -8,8 +8,10 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.dummy import DummyClassifier, DummyRegressor
 
 REGRESSION = {
+    "Baseline (média)": (DummyRegressor(strategy="mean"), {}),
     "Regressão Linear": (LinearRegression(), {}),
     "Ridge": (Ridge(), {"alpha": [0.01, 0.1, 1, 10, 100]}),
     "Lasso": (Lasso(max_iter=10000), {"alpha": [0.0001, 0.001, 0.01, 0.1, 1]}),
@@ -22,6 +24,7 @@ REGRESSION = {
 }
 
 CLASSIFICATION = {
+    "Baseline (maioria)": (DummyClassifier(strategy="most_frequent"), {}),
     "Regressão Logística": (LogisticRegression(max_iter=2000), {"C": [0.1, 1, 10]}),
     "Naive Bayes": (GaussianNB(), {}),
     "Árvore de Decisão": (DecisionTreeClassifier(random_state=0), {"max_depth": [3, 5, 8, 12, None]}),

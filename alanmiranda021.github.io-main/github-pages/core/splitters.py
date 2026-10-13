@@ -5,6 +5,21 @@ from sklearn.model_selection import (GroupKFold, GroupShuffleSplit, KFold,
                                      StratifiedKFold, TimeSeriesSplit, train_test_split)
 
 
+def normalize_times(times):
+    series = pd.Series(times)
+    if pd.api.types.is_numeric_dtype(series):
+        if not np.isfinite(series.to_numpy(dtype=float)).all():
+            raise ValueError("Tempo numérico deve ser finito.")
+        return series.to_numpy()
+    try:
+        parsed = pd.to_datetime(series, errors="raise", utc=True)
+        if parsed.isna().any():
+            raise ValueError("Tempo contém ausentes.")
+        return parsed.astype("int64").to_numpy()
+    except Exception as exc:
+        raise ValueError("Tempo deve ser numérico ou data/hora válida, sem ausentes.") from exc
+
+
 def holdout_indices(y, task, test_size=.2, seed=42, groups=None, times=None, gap=0):
     idx = np.arange(len(y))
     if groups is not None and times is not None:
@@ -14,6 +29,7 @@ def holdout_indices(y, task, test_size=.2, seed=42, groups=None, times=None, gap
             raise ValueError("Holdout agrupado requer pelo menos dois grupos sem ausentes.")
         return next(GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=seed).split(idx, y, groups))
     if times is not None:
+        times = normalize_times(times)
         if gap < 0 or pd.isna(times).any():
             raise ValueError("Tempo sem ausentes e gap não negativo são obrigatórios.")
         order = np.argsort(np.asarray(times), kind="stable")
@@ -40,6 +56,7 @@ def cv_indices(y, task, k=5, seed=42, groups=None, times=None, gap=0):
             raise ValueError(f"São necessários pelo menos {k} grupos completos.")
         return list(GroupKFold(k).split(idx, y, groups))
     if times is not None:
+        times = normalize_times(times)
         if pd.isna(times).any():
             raise ValueError("Tempo contém ausentes.")
         order = np.argsort(np.asarray(times), kind="stable")

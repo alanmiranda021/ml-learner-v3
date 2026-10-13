@@ -11,7 +11,7 @@ from core.models import CLASSIFICATION, REGRESSION
 from core.preprocess import build_preprocessor
 from core.task_config import suggest_task
 
-FAST = {"Regressão Linear", "Ridge", "Lasso", "Árvore de Decisão", "KNN", "SVR (RBF)", "Random Forest",
+FAST = {"Baseline (média)", "Baseline (maioria)", "Regressão Linear", "Ridge", "Lasso", "Árvore de Decisão", "KNN", "SVR (RBF)", "Random Forest",
         "Regressão Logística", "Naive Bayes", "SVM (RBF)", "Gradient Boosting"}  # MLP fica fora do modo rápido
 
 
@@ -27,16 +27,7 @@ def detect(df: pd.DataFrame, target: str | None = None, task_type=None, features
     task = task_type or guess
     log.append(reason)
     log.append("Tipo: " + ("classificação" if task == "classification" else "regressão"))
-    feats = []
-    for c in (features if features is not None else df.columns.drop(target)):
-        s = df[c]
-        if s.nunique(dropna=True) <= 1:
-            log.append(f"Descartada '{c}' (constante)"); continue
-        if s.isna().mean() > 0.5:
-            log.append(f"Descartada '{c}' (>50% ausente)"); continue
-        if not pd.api.types.is_numeric_dtype(s) and s.nunique() > 0.5 * len(s):
-            log.append(f"Descartada '{c}' (texto tipo ID)"); continue
-        feats.append(c)
+    feats = list(features if features is not None else df.columns.drop(target))
     dropped = int(y.isna().sum())
     if dropped:
         log.append(f"Linhas sem alvo excluídas: {dropped}.")
@@ -44,7 +35,7 @@ def detect(df: pd.DataFrame, target: str | None = None, task_type=None, features
 
 
 HEAVY = {"Random Forest", "Gradient Boosting", "Rede Neural (MLP)"}
-ORDER = ["Regressão Linear", "Ridge", "Lasso", "Regressão Logística", "Naive Bayes", "KNN", "Árvore de Decisão",
+ORDER = ["Baseline (média)", "Baseline (maioria)", "Regressão Linear", "Ridge", "Lasso", "Regressão Logística", "Naive Bayes", "KNN", "Árvore de Decisão",
          "SVR (RBF)", "SVM (RBF)", "Random Forest", "Gradient Boosting", "Rede Neural (MLP)"]
 
 
@@ -115,6 +106,23 @@ def run_auto(df, target=None, mode="rápido", test_size=0.2, seed=42, progress=N
     times = df[task_config.time_column].to_numpy() if task_config and task_config.split_strategy == "time" else None
     tr, te = holdout_indices(y, task, test_size, seed, groups, times)
     Xtr, Xte, ytr, yte = X.iloc[tr], X.iloc[te], y.iloc[tr], y.iloc[te]
+    # Structural suggestions never consult the external test (or its target).
+    usable = []
+    for c in feats:
+        s = Xtr[c]
+        reason = "constante no treino" if s.nunique(dropna=True) <= 1 else \
+                 ">50% ausente no treino" if s.isna().mean() > .5 else \
+                 "texto tipo ID no treino" if not pd.api.types.is_numeric_dtype(s) and s.nunique() > .5*len(s) else None
+        if reason:
+            log.append(f"Descartada '{c}' ({reason})")
+        else:
+            usable.append(c)
+    feats = usable
+    if not feats:
+        raise ValueError("Treino não contém preditores úteis; revise a seleção.")
+    Xtr, Xte = Xtr[feats], Xte[feats]
+    num = Xtr.select_dtypes("number").columns.tolist()
+    cat = [c for c in feats if c not in num]
     key = "R2" if task == "regression" else "F1 (macro)"
     reps = 1 if (rapido and IN_BROWSER) else (2 if rapido else 3)
 
@@ -266,7 +274,7 @@ def report_md(r) -> str:
          f"- Características usadas ({len(r['features'])}): " + ", ".join(f"`{c}`" for c in r['features'][:30]), "",
          "## Decisões automáticas", *[f"- {x}" for x in r["log"]], "",
          "## Auto-ajustes", *[f"- {x}" for x in r["adjustments"]], "",
-         "## Ranking (validação cruzada repetida 5-fold, só no treino)", "",
+         "## Ranking (validação cruzada somente no treino externo; consulte configuração/manifesto)", "",
          _md_table(r["leaderboard"].round(4)), "",
          f"## Melhor modelo: **{r['best']}**", f"Hiperparâmetros: `{r['best_params']}`", "",
          "## Desempenho no conjunto de teste", *[f"- {k}: {v:.4f}" for k, v in r["test_metrics"].items()]]

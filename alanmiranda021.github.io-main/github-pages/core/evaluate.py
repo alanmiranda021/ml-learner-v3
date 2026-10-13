@@ -10,7 +10,7 @@ from sklearn.model_selection import (GridSearchCV, KFold, RepeatedKFold, Repeate
                                      StratifiedKFold, cross_validate, train_test_split)
 from sklearn.pipeline import Pipeline
 
-REG_SCORING = {"R2": "r2", "RMSE": "neg_root_mean_squared_error", "MAE": "neg_mean_absolute_error"}
+REG_SCORING = {"R2": "r2", "RMSE": "neg_root_mean_squared_error", "MAE": "neg_mean_absolute_error", "MedAE": "neg_median_absolute_error"}
 CLF_SCORING = {"Acurácia": "accuracy", "Acurácia balanceada": "balanced_accuracy", "F1 (macro)": "f1_macro",
                "Precisão (macro)": "precision_macro", "Recall (macro)": "recall_macro"}
 
@@ -102,6 +102,6 @@ def cross_val(pipe, X, y, task, k=5, repeats=1, seed=42, progress=None, groups=N
     out = {}
     for name in sc:
         v = res[f"test_{name}"]
-        v = -v if name in ("RMSE", "MAE") else v
+        v = -v if name in ("RMSE", "MAE", "MedAE") else v
         out[name] = (float(v.mean()), float(v.std()))
     return out
