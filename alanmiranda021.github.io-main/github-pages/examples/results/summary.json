@@ -1,0 +1,31 @@
+[
+  {
+    "best": "E1 / Random Forest",
+    "metrics": {
+      "Acurácia": 0.9583333333333334,
+      "Acurácia balanceada": 0.96875,
+      "F1 (macro)": 0.9544592030360531,
+      "F1 (weighted)": 0.9588867805186592,
+      "MCC": 0.9128709291752769,
+      "Precisão (macro)": 0.9444444444444444,
+      "Recall (macro)": 0.96875
+    },
+    "seconds": 3.15690979998908,
+    "task": "classification",
+    "test": 24,
+    "train": 96
+  },
+  {
+    "best": "R1 / Ridge",
+    "metrics": {
+      "MAE": 8.791301715721602,
+      "MedAE": 6.109247315819405,
+      "R2": 0.9835101847234698,
+      "RMSE": 11.594961218768988
+    },
+    "seconds": 1.5638773000100628,
+    "task": "regression",
+    "test": 24,
+    "train": 96
+  }
+]

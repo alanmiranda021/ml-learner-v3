@@ -40,6 +40,7 @@ def ablation_configs(components=2, gamma=.1):
 
 def run_experiment(df, config, scenarios=None, model_names=None, k=3, test_size=.2,
                    tune=False, gap=0, progress=None):
+    started = time.perf_counter()
     config.validate(df)
     if config.split_strategy == "random" and df.duplicated(subset=[*config.features, config.target]).any():
         raise ValueError("Linhas duplicadas podem atravessar folds aleatórios. Escolha grupos de origem ou deduplique explicitamente.")
@@ -137,7 +138,7 @@ def run_experiment(df, config, scenarios=None, model_names=None, k=3, test_size=
               "y_true": np.asarray(yte), "y_pred": np.asarray(pred), "data": df,
               "log": ["Teste externo reservado; somente vencedor selecionado na CV é avaliado."],
               "adjustments": ["Ordem: imputação/IQR/escala/categorias → aumento → redução completa → modelo."],
-              "profile": {"n": len(Xtr)}, "seed": config.random_state, "seconds": float(board["tempo (s)"].sum())}
+              "profile": {"n": len(Xtr)}, "seed": config.random_state, "seconds": time.perf_counter()-started}
     if config.task_type == "classification":
         result["per_class"] = classification_report(yte, pred, output_dict=True, zero_division=0)
     return result

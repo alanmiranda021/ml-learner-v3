@@ -156,7 +156,7 @@ def render_scientific(df):
         if warning:
             st.info(warning)
         st.download_button("Baixar PDF científico", pdf, "scientific_report.pdf", "application/pdf")
-    bundle = make_bundle(r, r["model"], "treino externo (teste preservado)")
+    bundle = make_bundle(r, r["model"], "treino externo (teste preservado)", schema_data=r["X_train"])
     bundle["n_rows"] = r["n_train"]
     st.download_button("Baixar pipeline completo", to_bytes(bundle), "scientific_model.joblib")
     if st.button("Explicar vencedor com SHAP", disabled=IN_BROWSER):

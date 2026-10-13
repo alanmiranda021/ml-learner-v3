@@ -1,0 +1,1047 @@
+{
+  "config": {
+    "folds": 2,
+    "gap": 0,
+    "methodology": "inspirado/sae_extended; percentuais configuráveis, não reprodução exata",
+    "models": [
+      "Baseline (maioria)",
+      "SVM (RBF)",
+      "Random Forest"
+    ],
+    "scenarios": [
+      {
+        "augmentation": "none",
+        "id": "E1",
+        "reduction": "none"
+      },
+      {
+        "augmentation": "sae",
+        "balance_fraction": 0.5,
+        "epochs": 10,
+        "id": "E2",
+        "reduction": "none"
+      },
+      {
+        "augmentation": "sae",
+        "balance_fraction": 1.0,
+        "epochs": 10,
+        "id": "E3",
+        "reduction": "none"
+      },
+      {
+        "augmentation": "sae",
+        "balance_fraction": 1.0,
+        "components": 2,
+        "epochs": 10,
+        "gamma": 0.1,
+        "id": "E4",
+        "reduction": "kpca"
+      }
+    ],
+    "task": {
+      "augmentation_config": null,
+      "entity_column": null,
+      "features": [
+        "f1",
+        "f2",
+        "f3",
+        "f4"
+      ],
+      "group_column": null,
+      "model_config": null,
+      "positive_class": null,
+      "random_state": 42,
+      "reduction_config": null,
+      "sample_id_column": null,
+      "signal_config": null,
+      "split_strategy": "random",
+      "target": "target",
+      "task_type": "classification",
+      "time_column": null,
+      "unit_metadata": {}
+    },
+    "test_size": 0.2,
+    "tune": false
+  },
+  "config_hash": "b6439c7fac22df740df753848ca87a13ed0f80bc30f31fa5e0e3dc6a85d1d5ea",
+  "core_source_hash": "16d024c1000048a4d817eb0afcb3e5a3f63bda43625439d7f225c328515f5c0d",
+  "dataset_hash": "1570bd48ba1cec03a569e589fa897afe08edf58ec058277d270094b9a53d6ab7",
+  "experiment_id": "4ffaa1ce-92b8-4b3c-9243-d1c771822041",
+  "folds": {
+    "test": [
+      82,
+      94,
+      58,
+      68,
+      25,
+      64,
+      21,
+      2,
+      3,
+      20,
+      113,
+      76,
+      30,
+      109,
+      99,
+      96,
+      0,
+      45,
+      31,
+      115,
+      108,
+      81,
+      35,
+      41
+    ],
+    "train": [
+      52,
+      102,
+      69,
+      77,
+      71,
+      117,
+      93,
+      86,
+      29,
+      91,
+      53,
+      44,
+      61,
+      106,
+      42,
+      67,
+      56,
+      13,
+      74,
+      50,
+      62,
+      28,
+      78,
+      24,
+      110,
+      65,
+      33,
+      48,
+      8,
+      1,
+      46,
+      60,
+      32,
+      88,
+      111,
+      72,
+      23,
+      84,
+      100,
+      37,
+      9,
+      104,
+      6,
+      95,
+      54,
+      90,
+      4,
+      38,
+      87,
+      83,
+      73,
+      18,
+      63,
+      15,
+      40,
+      97,
+      11,
+      7,
+      92,
+      12,
+      19,
+      10,
+      119,
+      43,
+      36,
+      49,
+      98,
+      16,
+      39,
+      75,
+      112,
+      101,
+      116,
+      114,
+      105,
+      80,
+      59,
+      89,
+      107,
+      17,
+      22,
+      103,
+      118,
+      5,
+      26,
+      27,
+      70,
+      79,
+      66,
+      85,
+      47,
+      14,
+      51,
+      55,
+      34,
+      57
+    ],
+    "validation": [
+      {
+        "train": [
+          102,
+          69,
+          77,
+          86,
+          53,
+          44,
+          61,
+          13,
+          74,
+          50,
+          62,
+          28,
+          110,
+          65,
+          48,
+          1,
+          46,
+          72,
+          84,
+          90,
+          87,
+          83,
+          73,
+          18,
+          63,
+          15,
+          40,
+          11,
+          7,
+          12,
+          19,
+          10,
+          119,
+          98,
+          16,
+          39,
+          105,
+          89,
+          17,
+          22,
+          103,
+          26,
+          27,
+          79,
+          66,
+          51,
+          34,
+          57
+        ],
+        "validation": [
+          52,
+          71,
+          117,
+          93,
+          29,
+          91,
+          106,
+          42,
+          67,
+          56,
+          78,
+          24,
+          33,
+          8,
+          60,
+          32,
+          88,
+          111,
+          23,
+          100,
+          37,
+          9,
+          104,
+          6,
+          95,
+          54,
+          4,
+          38,
+          97,
+          92,
+          43,
+          36,
+          49,
+          75,
+          112,
+          101,
+          116,
+          114,
+          80,
+          59,
+          107,
+          118,
+          5,
+          70,
+          85,
+          47,
+          14,
+          55
+        ]
+      },
+      {
+        "train": [
+          52,
+          71,
+          117,
+          93,
+          29,
+          91,
+          106,
+          42,
+          67,
+          56,
+          78,
+          24,
+          33,
+          8,
+          60,
+          32,
+          88,
+          111,
+          23,
+          100,
+          37,
+          9,
+          104,
+          6,
+          95,
+          54,
+          4,
+          38,
+          97,
+          92,
+          43,
+          36,
+          49,
+          75,
+          112,
+          101,
+          116,
+          114,
+          80,
+          59,
+          107,
+          118,
+          5,
+          70,
+          85,
+          47,
+          14,
+          55
+        ],
+        "validation": [
+          102,
+          69,
+          77,
+          86,
+          53,
+          44,
+          61,
+          13,
+          74,
+          50,
+          62,
+          28,
+          110,
+          65,
+          48,
+          1,
+          46,
+          72,
+          84,
+          90,
+          87,
+          83,
+          73,
+          18,
+          63,
+          15,
+          40,
+          11,
+          7,
+          12,
+          19,
+          10,
+          119,
+          98,
+          16,
+          39,
+          105,
+          89,
+          17,
+          22,
+          103,
+          26,
+          27,
+          79,
+          66,
+          51,
+          34,
+          57
+        ]
+      }
+    ]
+  },
+  "git_commit": "a013721508868136fe1b2467d4e3b3610c968e94",
+  "hardware": {
+    "machine": "AMD64",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "metrics": {
+    "external_test": {
+      "Acurácia": 0.9583333333333334,
+      "Acurácia balanceada": 0.96875,
+      "F1 (macro)": 0.9544592030360531,
+      "F1 (weighted)": 0.9588867805186592,
+      "MCC": 0.9128709291752769,
+      "Precisão (macro)": 0.9444444444444444,
+      "Recall (macro)": 0.96875
+    },
+    "validation": [
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E1 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E1 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.8958333333333334,
+          "Acurácia balanceada": 0.8927893738140418,
+          "F1 (macro)": 0.8875878220140515,
+          "F1 (weighted)": 0.8964676034348166,
+          "MCC": 0.7760651002642738,
+          "Precisão (macro)": 0.8833333333333333,
+          "Recall (macro)": 0.8927893738140418
+        },
+        "model": "E1 / SVM (RBF)"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8541666666666666,
+          "Acurácia balanceada": 0.8206831119544592,
+          "F1 (macro)": 0.8332506203473946,
+          "F1 (weighted)": 0.8504755996691481,
+          "MCC": 0.6748510319297653,
+          "Precisão (macro)": 0.8550420168067226,
+          "Recall (macro)": 0.8206831119544592
+        },
+        "model": "E1 / SVM (RBF)"
+      },
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.8958333333333334,
+          "Acurácia balanceada": 0.8927893738140418,
+          "F1 (macro)": 0.8875878220140515,
+          "F1 (weighted)": 0.8964676034348166,
+          "MCC": 0.7760651002642738,
+          "Precisão (macro)": 0.8833333333333333,
+          "Recall (macro)": 0.8927893738140418
+        },
+        "model": "E1 / Random Forest"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8958333333333334,
+          "Acurácia balanceada": 0.8662239089184061,
+          "F1 (macro)": 0.8808933002481389,
+          "F1 (weighted)": 0.8931968569065344,
+          "MCC": 0.7706878648665366,
+          "Precisão (macro)": 0.9054621848739496,
+          "Recall (macro)": 0.8662239089184061
+        },
+        "model": "E1 / Random Forest"
+      },
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E2 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E2 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.13176366734251083,
+              -0.093980796682032,
+              -0.020344435175920328,
+              0.12511902756959037
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0080638819959065,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 7
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.8541666666666666,
+          "Acurácia balanceada": 0.8605313092979128,
+          "F1 (macro)": 0.8460833715071003,
+          "F1 (weighted)": 0.8563712017101848,
+          "MCC": 0.6994944540094827,
+          "Precisão (macro)": 0.8392857142857143,
+          "Recall (macro)": 0.8605313092979128
+        },
+        "model": "E2 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.09235245925613372,
+              -0.10748145320403811,
+              0.03562700528701168,
+              0.15597593763170348
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0661486064722705,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 7
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8541666666666666,
+          "Acurácia balanceada": 0.8206831119544592,
+          "F1 (macro)": 0.8332506203473946,
+          "F1 (weighted)": 0.8504755996691481,
+          "MCC": 0.6748510319297653,
+          "Precisão (macro)": 0.8550420168067226,
+          "Recall (macro)": 0.8206831119544592
+        },
+        "model": "E2 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.13176366734251083,
+              -0.093980796682032,
+              -0.020344435175920328,
+              0.12511902756959037
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0080638819959065,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 7
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.875,
+          "Acurácia balanceada": 0.8766603415559773,
+          "F1 (macro)": 0.8666666666666667,
+          "F1 (weighted)": 0.876388888888889,
+          "MCC": 0.7367317724443136,
+          "Precisão (macro)": 0.8602540834845736,
+          "Recall (macro)": 0.8766603415559773
+        },
+        "model": "E2 / Random Forest"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.09235245925613372,
+              -0.10748145320403811,
+              0.03562700528701168,
+              0.15597593763170348
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0661486064722705,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 7
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8958333333333334,
+          "Acurácia balanceada": 0.8662239089184061,
+          "F1 (macro)": 0.8808933002481389,
+          "F1 (weighted)": 0.8931968569065344,
+          "MCC": 0.7706878648665366,
+          "Precisão (macro)": 0.9054621848739496,
+          "Recall (macro)": 0.8662239089184061
+        },
+        "model": "E2 / Random Forest"
+      },
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E3 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E3 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.09791070212076602,
+              0.03756507527375333,
+              0.0037528968245631456,
+              0.11974418131442954
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0332684475754297,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 14
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.8541666666666666,
+          "Acurácia balanceada": 0.8605313092979128,
+          "F1 (macro)": 0.8460833715071003,
+          "F1 (weighted)": 0.8563712017101848,
+          "MCC": 0.6994944540094827,
+          "Precisão (macro)": 0.8392857142857143,
+          "Recall (macro)": 0.8605313092979128
+        },
+        "model": "E3 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.05819652407553674,
+              -0.005520731082380936,
+              0.06423156260665525,
+              0.17203859937223964
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.094696071241464,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 14
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.875,
+          "Acurácia balanceada": 0.8500948766603416,
+          "F1 (macro)": 0.859375,
+          "F1 (weighted)": 0.873046875,
+          "MCC": 0.7224677392753258,
+          "Precisão (macro)": 0.8727272727272728,
+          "Recall (macro)": 0.8500948766603416
+        },
+        "model": "E3 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.09791070212076602,
+              0.03756507527375333,
+              0.0037528968245631456,
+              0.11974418131442954
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0332684475754297,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 14
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.875,
+          "Acurácia balanceada": 0.8766603415559773,
+          "F1 (macro)": 0.8666666666666667,
+          "F1 (weighted)": 0.876388888888889,
+          "MCC": 0.7367317724443136,
+          "Precisão (macro)": 0.8602540834845736,
+          "Recall (macro)": 0.8766603415559773
+        },
+        "model": "E3 / Random Forest"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.05819652407553674,
+              -0.005520731082380936,
+              0.06423156260665525,
+              0.17203859937223964
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.094696071241464,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 14
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8958333333333334,
+          "Acurácia balanceada": 0.8662239089184061,
+          "F1 (macro)": 0.8808933002481389,
+          "F1 (weighted)": 0.8931968569065344,
+          "MCC": 0.7706878648665366,
+          "Precisão (macro)": 0.9054621848739496,
+          "Recall (macro)": 0.8662239089184061
+        },
+        "model": "E3 / Random Forest"
+      },
+      {
+        "augmentation": [],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E4 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.6458333333333334,
+          "Acurácia balanceada": 0.5,
+          "F1 (macro)": 0.3924050632911392,
+          "F1 (weighted)": 0.5068565400843882,
+          "MCC": 0.0,
+          "Precisão (macro)": 0.3229166666666667,
+          "Recall (macro)": 0.5
+        },
+        "model": "E4 / Baseline (maioria)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.09791070212076602,
+              0.03756507527375333,
+              0.0037528968245631456,
+              0.11974418131442954
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0332684475754297,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 14
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6875,
+          "Acurácia balanceada": 0.6783681214421253,
+          "F1 (macro)": 0.6701786532295007,
+          "F1 (weighted)": 0.6922240036646817,
+          "MCC": 0.3460656772467967,
+          "Precisão (macro)": 0.6678571428571429,
+          "Recall (macro)": 0.6783681214421253
+        },
+        "model": "E4 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.05819652407553674,
+              -0.005520731082380936,
+              0.06423156260665525,
+              0.17203859937223964
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.094696071241464,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 14
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8333333333333334,
+          "Acurácia balanceada": 0.7779886148007591,
+          "F1 (macro)": 0.7983193277310925,
+          "F1 (weighted)": 0.8228291316526611,
+          "MCC": 0.6326523245956868,
+          "Precisão (macro)": 0.85995085995086,
+          "Recall (macro)": 0.7779886148007591
+        },
+        "model": "E4 / SVM (RBF)"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.1969079093606494,
+            "mean_shift": [
+              -0.09791070212076602,
+              0.03756507527375333,
+              0.0037528968245631456,
+              0.11974418131442954
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.0332684475754297,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.7024897240006763,
+            "synthetic": 14
+          }
+        ],
+        "fold": 0,
+        "metrics": {
+          "Acurácia": 0.6666666666666666,
+          "Acurácia balanceada": 0.6755218216318786,
+          "F1 (macro)": 0.6571428571428571,
+          "F1 (weighted)": 0.6738095238095237,
+          "MCC": 0.336072129948824,
+          "Precisão (macro)": 0.6608695652173913,
+          "Recall (macro)": 0.6755218216318786
+        },
+        "model": "E4 / Random Forest"
+      },
+      {
+        "augmentation": [
+          {
+            "class": "0",
+            "real": 31,
+            "synthetic": 0
+          },
+          {
+            "class": "1",
+            "epochs_run": 10,
+            "loss": 1.2376898700360992,
+            "mean_shift": [
+              -0.05819652407553674,
+              -0.005520731082380936,
+              0.06423156260665525,
+              0.17203859937223964
+            ],
+            "near_copies": 0,
+            "nearest_distance_mean": 1.094696071241464,
+            "outside_envelope_before_clip": 0,
+            "real": 17,
+            "reconstruction_mse": 0.8234421026168743,
+            "synthetic": 14
+          }
+        ],
+        "fold": 1,
+        "metrics": {
+          "Acurácia": 0.8333333333333334,
+          "Acurácia balanceada": 0.7912713472485768,
+          "F1 (macro)": 0.806060606060606,
+          "F1 (weighted)": 0.8272727272727272,
+          "MCC": 0.626942006555466,
+          "Precisão (macro)": 0.8373626373626374,
+          "Recall (macro)": 0.7912713472485768
+        },
+        "model": "E4 / Random Forest"
+      }
+    ]
+  },
+  "python": "3.14.8",
+  "schema_version": 1,
+  "timestamp": "2026-10-13T11:08:14.331700-03:00",
+  "versions": {
+    "imbalanced-learn": "0.14.2",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "shap": "0.52.0",
+    "streamlit": "1.65.0"
+  },
+  "warnings": [
+    "Dados sintéticos e benchmarks não comprovam validade física ou generalização no domínio real."
+  ]
+}

@@ -13,8 +13,8 @@ def final_model(r):
     return m
 
 
-def make_bundle(r, model, trained_on="100% dos dados"):
-    d = r["data"]
+def make_bundle(r, model, trained_on="100% dos dados", schema_data=None):
+    d = r["data"] if schema_data is None else schema_data
     bundle = {"bundle_version": 2, "model": model, "features": r["features"], "target": r["target"], "task": r["task"],
               "algorithm": r["best"], "test_metrics": r["test_metrics"], "trained_on": trained_on, "n_rows": len(d),
               "dtypes": {c: str(d[c].dtype) for c in r["features"]},
@@ -112,6 +112,14 @@ def retrain_bundle(bundle: dict, df: pd.DataFrame, test_size=0.2, seed=42):
     final = clone(bundle["model"]).fit(X, y)
     nb = dict(bundle); nb.update(model=final, n_rows=len(df), trained_on=f"retreino com {len(df)} linhas novas",
                                   test_metrics=new, dtypes={c: str(X[c].dtype) for c in bundle["features"]})
+    nb["categories"] = {c: [str(v) for v in X[c].dropna().unique()]
+                        for c in bundle["features"] if not pd.api.types.is_numeric_dtype(X[c])}
+    nb["schema"] = {c: "numeric" if pd.api.types.is_numeric_dtype(X[c]) else "categorical" for c in bundle["features"]}
+    from core.experiment_tracking import manifest
+    old_id = (bundle.get("manifest") or {}).get("experiment_id")
+    nb["manifest"] = manifest(df, {"task": cfg, "retrain_seed": seed, "previous_experiment": old_id,
+                                   "test_size": test_size, "final_refit": "all_rows"},
+                               {"train": tr.tolist(), "test": te.tolist()}, {"new_holdout": new})
     if clf:
         nb["classes"] = [str(c) for c in final.classes_]
     return nb, {"antigo": old, "novo": new, "n_teste": len(Xte), "n_total": len(df)}

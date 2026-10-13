@@ -21,6 +21,8 @@ class SignalConfig:
     feature_set: str = "generic_time18"
 
     def validate(self):
+        if not isinstance(self.min_samples, int) or self.min_samples < 3:
+            raise ValueError("min_samples deve ser inteiro >= 3.")
         if not np.isfinite(self.fs_hz) or self.fs_hz <= 0:
             raise ValueError("fs_hz deve ser confirmado, positivo e finito.")
         if not isinstance(self.window_samples, int) or self.window_samples < max(3, self.min_samples):

@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8
+shap>=0.46
+PyYAML>=6

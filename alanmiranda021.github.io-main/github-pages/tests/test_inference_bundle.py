@@ -25,3 +25,18 @@ def test_bundle_roundtrip_categories_missing_and_kpca(task):
         predict_table(bundle, df[["cat"]])
     with pytest.raises(ValueError):
         predict_table(bundle, df.assign(x="oops"))
+
+
+def test_sae_bundle_prediction_skips_sampler():
+    pytest.importorskip("imblearn")
+    from core.sparse_autoencoder import SparseAutoencoderSampler
+    df = pd.DataFrame(np.random.default_rng(5).normal(size=(40, 3)), columns=list("abc"))
+    df["target"] = [0]*26+[1]*14
+    pipe = make_pipeline(build_preprocessor(list("abc"), []), LogisticRegression(), task="classification",
+                         sampler=SparseAutoencoderSampler(epochs=5, latent_dim=2),
+                         reduction=ValidatedReduction("kpca", 2)).fit(df, df.target)
+    r = dict(data=df, features=list("abc"), task="classification", target="target", best="test", test_metrics={})
+    bundle = load_bundle(to_bytes(make_bundle(r, pipe)))
+    before = bundle["model"]["samp"].diagnostics_.copy()
+    np.testing.assert_array_equal(predict_table(bundle, df).previsto_target, pipe.predict(df))
+    assert bundle["model"]["samp"].diagnostics_ == before

@@ -1,0 +1,13 @@
+task:
+  task_type: regression
+  target: null
+  features: []
+  split_strategy: random
+  random_state: 42
+protocol: generic
+components: 2
+gamma: 0.1
+models: ["SVR (RBF)", "Random Forest", "Ridge"]
+folds: 3
+test_size: 0.2
+tune: false

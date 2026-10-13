@@ -50,3 +50,36 @@ A primeira abertura baixa Python e pacotes via CDN; pode levar minutos. Uploads 
 A tela de inicialização mostra falhas de download e permite tentar novamente. Consulte também o Console do navegador. Os resultados do guia são referências externas e não garantem o desempenho de outras bases.
 
 Referência técnica: https://github.com/whitphx/stlite/tree/v0.85.1
+# Evolução científica — outubro de 2026
+
+O modo **Científico** é a nova entrada padrão. Mantém os modos automático, manual
+e uso de bundles. Inclui contrato explícito de tarefa, inspeção MAT, grupos/tempo,
+PCA/KPCA, sinais com proveniência, protocolos de regressão e cenários E1–E4
+inspirados no artigo, com SAE local. Consulte [metodologia](docs/METODOLOGIA.md),
+[limitações](docs/LIMITACOES.md), [auditoria](docs/AUDITORIA_INICIAL.md) e
+[rastreabilidade](docs/MATRIZ_RASTREABILIDADE.md).
+
+```powershell
+python -m pip install -r github-pages/requirements-dev.txt
+python -m streamlit run github-pages/app.py
+python -m pytest -q github-pages/tests
+```
+
+No diretório `github-pages`, CLI com contrato obrigatório:
+
+```powershell
+python experiment_cli.py dados.csv --config configs/generic_regression.yaml --target potencia --features velocidade temperatura
+```
+
+Os nomes acima são exemplos de flags, não schema dos dados do navio.
+Edite YAML para grupos/tempo, unidades, modelos e parâmetros; no MAT indique
+`--variable` e `--orientation`. A CLI exporta manifesto, configuração, comparação,
+relatório Markdown e bundle em uma pasta por experimento. Previsões com alvo real
+só são gravadas com `--export-predictions`.
+
+SAE é NumPy com penalidade KL, não depende de PyTorch, mas está restrito ao modo
+local. Sua geração em atributos tabulares difere da síntese de sinais do artigo;
+`article3_reproduction` está bloqueado. No navegador, E1–E4 com SAE e SHAP
+ficam indisponíveis. MAT v7.3 depende de h5py local. Não há promessa de acurácia.
+O pipeline científico exportado continua ajustado apenas no treino reservado;
+o teste externo é preservado. Nunca carregue joblib de origem desconhecida.

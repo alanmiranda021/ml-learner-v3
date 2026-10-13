@@ -1,0 +1,15 @@
+# Inspirado em E1-E4. Não é reprodução exata. Complete o contrato ou use flags CLI.
+task:
+  task_type: classification
+  target: null
+  features: []
+  split_strategy: random
+  random_state: 42
+protocol: article3
+components: 2
+gamma: 0.1
+sae_epochs: 100
+models: ["SVM (RBF)", "Random Forest"]
+folds: 3
+test_size: 0.2
+tune: false

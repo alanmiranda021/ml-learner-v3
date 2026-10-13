@@ -1,0 +1,22 @@
+name: ML Learner scientific tests
+on:
+  push:
+    paths: ["github-pages/**", ".github/workflows/ml-learner.yml"]
+  pull_request:
+    paths: ["github-pages/**", ".github/workflows/ml-learner.yml"]
+  workflow_dispatch:
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: github-pages/requirements*.txt
+      - run: python -m pip install -r github-pages/requirements-dev.txt
+      - run: python -m pytest -q github-pages/tests
