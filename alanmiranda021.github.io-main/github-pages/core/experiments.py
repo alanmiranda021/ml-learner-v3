@@ -117,7 +117,7 @@ def run_experiment(df, config, scenarios=None, model_names=None, k=3, test_size=
             rows.append({"Modelo": label, **means, **deviations, "tempo (s)": elapsed})
             specs[label] = (pre, model, grid, sampler, reduction)
     # Choose using validation only; evaluate exactly one winner on the external test.
-    board = pd.DataFrame(rows).sort_values(key, ascending=False).reset_index(drop=True)
+    board = pd.DataFrame(rows).sort_values(key, ascending=False, kind="stable").reset_index(drop=True)
     best = board.loc[0, "Modelo"]
     pre, model, grid, sampler, reduction = specs[best]
     inner = cv_indices(ytr, config.task_type, k, config.random_state, gt, tt, gap) if tune else k

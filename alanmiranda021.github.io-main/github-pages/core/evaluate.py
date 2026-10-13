@@ -11,8 +11,11 @@ from sklearn.model_selection import (GridSearchCV, KFold, RepeatedKFold, Repeate
 from sklearn.pipeline import Pipeline
 
 REG_SCORING = {"R2": "r2", "RMSE": "neg_root_mean_squared_error", "MAE": "neg_mean_absolute_error", "MedAE": "neg_median_absolute_error"}
+from sklearn.metrics import make_scorer
+
 CLF_SCORING = {"Acurácia": "accuracy", "Acurácia balanceada": "balanced_accuracy", "F1 (macro)": "f1_macro",
-               "Precisão (macro)": "precision_macro", "Recall (macro)": "recall_macro"}
+               "Precisão (macro)": make_scorer(precision_score, average="macro", zero_division=0),
+               "Recall (macro)": make_scorer(recall_score, average="macro", zero_division=0)}
 
 
 def make_pipeline(pre, model, grid=None, tune=False, cv_inner=5, task="regression", sampler=None, reduction=None):

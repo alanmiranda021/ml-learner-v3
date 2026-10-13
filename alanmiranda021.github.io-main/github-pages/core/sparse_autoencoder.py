@@ -128,7 +128,7 @@ class SparseAutoencoderSampler(BaseEstimator):
                 "reconstruction_mse": float(np.mean((rec-data)**2)), "nearest_distance_mean": float(near.mean()),
                 "near_copies": int((near < 1e-8).sum()), "outside_envelope_before_clip": outside,
                 "mean_shift": (synth.mean(axis=0)-data.mean(axis=0)).tolist(),
-                "epochs_run": len(history), "loss": history[-1]})
+                "epochs_run": len(history), "loss": min(history)})
             self.networks_[str(cls)] = {"params": params, "mean": mean, "scale": scale}
             generated.append(synth)
             labels.append(np.full(amount, cls, dtype=y.dtype))

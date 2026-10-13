@@ -155,7 +155,7 @@ def _insights(r):
     te = tm[key]
     out.append(f"O melhor modelo foi <b>{T(r['best'])}</b>, com {key} de {te:.3f} no teste (validacao cruzada: {cv:.3f}).")
     gap = cv - te
-    out.append("A diferenca entre validacao cruzada e teste e pequena, sinal de que o modelo generaliza."
+    out.append("A diferenca entre validacao cruzada e teste e pequena neste experimento; validade externa exige dados independentes."
                if abs(gap) < 0.05 else f"Atencao: diferenca de {gap:+.3f} entre validacao cruzada e teste; com poucos dados isso e comum, interprete com cautela.")
     if len(board) > 1:
         d = float(board[key].iloc[0] - board[key].iloc[1])
@@ -163,7 +163,7 @@ def _insights(r):
                    else f"O 1o colocado supera o 2o por {d:.3f} em {key}.")
     if task == "classification" and r["profile"].get("imbalance", 1) < 0.5:
         out.append("As classes sao desbalanceadas; por isso a metrica principal e o F1 macro e foram usados pesos de classe.")
-    if r["profile"]["n"] < 300:
+    if r["profile"].get("n", r["n_train"]) < 300:
         out.append("A base e pequena (menos de 300 linhas): os resultados tem alta variabilidade.")
     return out
 
@@ -206,11 +206,17 @@ def build_pdf(r, filename="dados", importance=True) -> bytes:
         S += [P("Estatisticas descritivas" + (" (25 primeiras colunas numericas)" if num.shape[1] > 25 else ""), H2),
               _table(ds.rename(columns={"mean": "media", "std": "desvio", "50%": "mediana"}), [4.2 * cm] + [1.9 * cm] * 6)]
     # ---- metodologia
+    protocol = r.get("manifest", {}).get("config", {})
+    split_strategy = (r.get("task_config") or {}).get("split_strategy", "random")
+    cv_description = f"{protocol['folds']} folds" if "folds" in protocol else "validacao cruzada de 5 folds (repeticoes conforme orcamento)"
     S += [P("3. Metodologia e auto-ajustes", H1),
-          P("Os dados foram divididos em treino (80%) e teste (20%, estratificado na classificacao). Todos os algoritmos foram comparados por "
-            "validacao cruzada repetida de 5 partes apenas no treino. O pre-processamento (imputacao, limitacao de outliers, escalonamento, PCA) "
-            "ocorre dentro de cada particao, evitando vazamento de dados. O modelo vencedor foi otimizado e avaliado uma unica vez no teste."),
+          P(f"Treino: {r['n_train']} linhas. Teste: {r['n_test']} linhas. Divisao: {split_strategy}. "
+            f"Comparacao por {cv_description} apenas no treino externo. "
+            "Imputacao, limitacao de outliers, escala, aumento e reducao, quando configurados, "
+            "sao ajustados dentro de cada particao de treino. O vencedor e avaliado uma vez no teste externo."),
           P("Ajustes feitos automaticamente pelo sistema", H2)] + [P("- " + x, SMALL) for x in r["adjustments"]]
+    if protocol:
+        S += [P("Protocolo", H2), P(protocol.get("methodology", "Configuracao registrada no manifesto."))]
     # ---- ranking
     metr = [c for c in board.columns if c not in ("Modelo", "tempo (s)") and "(+-)" not in c and "(±)" not in c]
     show = board[["Modelo"] + metr + ["tempo (s)"]].copy()
@@ -258,10 +264,12 @@ def build_pdf(r, filename="dados", importance=True) -> bytes:
           P("- Os resultados podem diferir de outras ferramentas (ex.: MATLAB) por inicializacao e hiperparametros padrao distintos.")]
     # ---- apendice
     import sklearn
+    recipe = r.get("config")
+    preprocessing_description = (f"{recipe['scaler']}, outliers {'limitados (IQR)' if recipe['winsor'] else 'mantidos'}"
+                                 + (", PCA 95%" if recipe.get("pca") else "")) if recipe else "consulte os cenarios no manifesto"
     S += [P("Apendice: reprodutibilidade e glossario", H1),
           P(f"Python {sys.version.split()[0]}, scikit-learn {sklearn.__version__}, pandas {pd.__version__}, numpy {np.__version__}. "
-            f"Semente {r['seed']}. Pre-processamento: {r['config']['scaler']}, outliers {'limitados (IQR)' if r['config']['winsor'] else 'mantidos'}"
-            f"{', PCA 95%' if r['config']['pca'] else ''}.", SMALL),
+            f"Semente {r['seed']}. Pre-processamento: {preprocessing_description}.", SMALL),
           P("Metricas: <b>R2</b> = fracao da variancia explicada (1 e perfeito). <b>RMSE</b> = erro quadratico medio, na unidade do alvo. "
             "<b>MAE</b> = erro absoluto medio. <b>Acuracia</b> = acertos totais. <b>Precisao</b> = dos previstos como classe X, quantos eram X. "
             "<b>Recall</b> = das amostras X, quantas foram achadas. <b>F1</b> = media harmonica de precisao e recall; <b>macro</b> = media simples entre classes.".replace("<b>", "").replace("</b>", ""), SMALL)]

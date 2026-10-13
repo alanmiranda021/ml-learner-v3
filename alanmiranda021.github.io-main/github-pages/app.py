@@ -1,4 +1,5 @@
 import io
+import hashlib
 import joblib
 import numpy as np
 import pandas as pd
@@ -15,6 +16,8 @@ from core.evaluate import cross_val, holdout, make_pipeline
 from core.predict import final_model, load_bundle, make_bundle, predict_table, retrain_bundle, to_bytes
 from core.report_pdf import safe_pdf, save_pdf
 from core.io import load_table
+from core.data_inspection import inspect_mat, mat_to_table
+from core.task_config import TaskConfig, suggest_task
 from core.models import CLASSIFICATION, REGRESSION
 from core.preprocess import (SCALERS, build_preprocessor, outlier_report,
                              remove_outlier_rows, smooth_columns)
@@ -60,7 +63,21 @@ with st.sidebar:
     loaded = []
     for f in files:
         try:
-            loaded.append((f.name, load_table(f.name, f.getvalue())))
+            if f.name.lower().endswith(".mat"):
+                info = inspect_mat(f.getvalue())
+                st.write("Variáveis MATLAB:", info)
+                choices = [v["name"] for v in info["variables"] if v["tabular"]]
+                if choices:
+                    variable = st.selectbox(f"Variável em {f.name}", choices, key=f"mat_var_{f.name}")
+                    orientation = st.radio(f"Orientação em {f.name}", ["rows", "columns"],
+                                          format_func=lambda o: "Linhas = amostras" if o == "rows" else "Colunas = amostras",
+                                          key=f"mat_orientation_{f.name}")
+                    loaded.append((f.name, mat_to_table(f.getvalue(), variable, orientation)))
+                else:
+                    st.caption("Objetos MATLAB: tentativa do leitor legado; se falhar, exporte a tabela como CSV.")
+                    loaded.append((f.name, load_table(f.name, f.getvalue())))
+            else:
+                loaded.append((f.name, load_table(f.name, f.getvalue())))
         except Exception as e:
             st.error(f"{f.name}: {e}")
     if not loaded:
@@ -71,7 +88,14 @@ with st.sidebar:
 
 if multi.startswith("Processar"):
     st.subheader("🗂️ Modo lote: cada arquivo vira um projeto")
-    st.caption("Para cada arquivo: alvo = última coluna, tipo detectado, modelos comparados, relatório PDF. Erros em um arquivo não param os outros.")
+    st.caption("Confirme alvo e tarefa de cada arquivo. Erros em um arquivo não param os outros.")
+    batch_configs = {}
+    for nome, d in loaded:
+        bt = st.selectbox(f"Alvo de {nome}", d.columns, index=len(d.columns)-1, key=f"batch_target_{nome}")
+        guess, reason = suggest_task(d[bt])
+        st.caption(reason)
+        btask = st.radio(f"Tipo de {nome}", ["regression", "classification"], index=0 if guess == "regression" else 1, key=f"batch_task_{nome}")
+        batch_configs[nome] = TaskConfig(btask, bt, [c for c in d.columns if c != bt])
     lv = st.radio("Velocidade", ["rápido", "completo"], horizontal=True, key="lv")
     lo = st.slider("Orçamento de tempo por arquivo (s)", 30, 600, 90, 30, key="lo")
     if st.button("▶️ Rodar todos os arquivos", type="primary"):
@@ -83,7 +107,7 @@ if multi.startswith("Processar"):
                 def batch_progress(p, text):
                     value = (i + 0.95 * p) / len(loaded)
                     bar.progress(value, text=f"{value:.0%} · Arquivo {i + 1}/{len(loaded)} · {nome} · {text}")
-                r = run_auto(d, None, lv, budget_s=lo, progress=batch_progress)
+                r = run_auto(d, None, lv, budget_s=lo, progress=batch_progress, task_config=batch_configs[nome])
                 k = "R2" if r["task"] == "regression" else "F1 (macro)"
                 rows.append({"arquivo": nome, "tipo": "regressão" if r["task"] == "regression" else "classificação", "alvo": r["target"],
                              "melhor modelo": r["best"], "métrica": k, "nota (teste)": round(r["test_metrics"][k], 4), "tempo (s)": r["seconds"]})
@@ -121,31 +145,43 @@ st.dataframe(df.head(50), **STRETCH)
 
 with st.sidebar:
     st.header("Modo")
-    modo = st.radio("Como quer trabalhar?", ["🚀 Automático", "🛠️ Manual", "📦 Usar / retreinar .joblib"], label_visibility="collapsed")
+    modo = st.radio("Como quer trabalhar?", ["🔬 Científico", "🚀 Automático", "🛠️ Manual", "📦 Usar / retreinar .joblib"], label_visibility="collapsed")
+
+if modo.startswith("🔬"):
+    from scientific_ui import render_scientific
+    render_scientific(df)
+    st.stop()
 
 if modo.startswith("🚀"):
     st.subheader("🚀 Modo automático")
-    st.write("O sistema escolhe o alvo (última coluna, mude se precisar), detecta regressão/classificação, "
+    st.write("Confirme o alvo e o tipo de tarefa. O sistema "
              "descarta colunas inúteis, trata outliers, escalona, compara os algoritmos com validação cruzada "
              "repetida, otimiza o melhor e avalia num teste nunca visto.")
-    _sig = (tuple(f.name for f in files), df.shape)
-    if st.session_state.get("auto_sig") != _sig:  # arquivo mudou: descarta resultados antigos
-        for _k in ("auto", "pdf", "pdf_aviso", "pdf_path", "bundle"):
-            st.session_state.pop(_k, None)
-        st.session_state["auto_sig"] = _sig
     a1, a2 = st.columns(2)
     alvo = a1.selectbox("Variável alvo", df.columns, index=len(df.columns) - 1)
+    guess, reason = suggest_task(df[alvo])
+    st.caption(reason)
+    auto_task = st.radio("Tarefa confirmada", ["regression", "classification"], index=0 if guess == "regression" else 1)
+    auto_features = st.multiselect("Preditores automáticos", [c for c in df.columns if c != alvo], default=[c for c in df.columns if c != alvo])
+    auto_confirm = st.checkbox("Confirmo alvo e tarefa")
     velocidade = a2.radio("Velocidade", ["rápido", "completo"], horizontal=True,
                           help="Completo inclui rede neural e mais repetições (bem mais lento).")
     orcamento = st.slider("Orçamento de tempo (segundos)", 30, 900, 150 if velocidade == "rápido" else 600, 30,
                           help="O sistema pula modelos lentos ou desliga a otimização para respeitar esse tempo.")
-    if st.button("▶️ Rodar tudo automaticamente", type="primary"):
+    _sig = (hashlib.sha256(pd.util.hash_pandas_object(df, index=True).values.tobytes()).hexdigest(),
+            tuple(df.columns), alvo, auto_task, tuple(auto_features), velocidade, orcamento)
+    if st.session_state.get("auto_sig") != _sig:
+        for _k in ("auto", "pdf", "pdf_aviso", "pdf_path", "bundle"):
+            st.session_state.pop(_k, None)
+        st.session_state["auto_sig"] = _sig
+    if st.button("▶️ Rodar tudo automaticamente", type="primary", disabled=not auto_confirm or not auto_features):
         barra = st.progress(0.0, text="Iniciando...")
         for _k in ("pdf", "pdf_aviso", "pdf_path", "bundle"):
             st.session_state.pop(_k, None)
         try:
             st.session_state["auto"] = run_auto(df, alvo, velocidade,
-                progress=lambda p, t: barra.progress(0.95 * p, text=f"{0.95 * p:.0%} · {t}"), budget_s=orcamento)
+                progress=lambda p, t: barra.progress(0.95 * p, text=f"{0.95 * p:.0%} · {t}"), budget_s=orcamento,
+                task_config=TaskConfig(auto_task, alvo, auto_features))
         except Exception as e:
             barra.empty()
             st.session_state.pop("auto", None)
@@ -279,7 +315,8 @@ if modo.startswith("📦"):
 with st.sidebar:
     st.header("2) Problema")
     target = st.selectbox("Variável alvo (a prever)", df.columns, index=len(df.columns) - 1)
-    task_guess = "classification" if (df[target].dtype == object or df[target].nunique() <= 15) else "regression"
+    task_guess, task_reason = suggest_task(df[target])
+    st.caption(task_reason)
     task = st.radio("Tipo", ["regression", "classification"], index=["regression", "classification"].index(task_guess),
                     format_func=lambda t: "Regressão" if t == "regression" else "Classificação")
     feats = st.multiselect("Características (entradas)", [c for c in df.columns if c != target],
@@ -299,8 +336,8 @@ with st.sidebar:
     num_cols_all = df[feats].select_dtypes("number").columns.tolist()
     winsor = st.checkbox("Limitar outliers (IQR) — dentro do pipeline", value=True)
     k_iqr = st.slider("Fator IQR", 1.0, 3.0, 1.5, 0.1)
-    rm_rows = st.checkbox("Remover linhas com outliers (antes da divisão)", value=False)
-    smooth = st.selectbox("Suavização (dados em ordem temporal)", ["Nenhuma", "Média móvel", "Mediana móvel", "Savitzky-Golay"])
+    rm_rows = st.checkbox("Remover linhas antes da divisão (incompatível com validação científica)", value=False, disabled=True)
+    smooth = st.selectbox("Suavização pré-split (use modo sinais com grupos)", ["Nenhuma"], disabled=True)
     win = st.slider("Janela", 3, 51, 5, 2) if smooth != "Nenhuma" else 5
     scaler = st.selectbox("Escalonamento", list(SCALERS), index=1)
 
@@ -343,6 +380,9 @@ with st.sidebar:
 if st.button("▶️ Treinar e comparar", type="primary"):
     sampler = None
     if sampler_name != "Nenhum":
+        if cat_cols:
+            st.error("SMOTE/ADASYN não habilitado com categorias one-hot; selecione preditores numéricos ou dispense aumento.")
+            st.stop()
         from imblearn.over_sampling import ADASYN, SMOTE
         sampler = {"SMOTE": SMOTE, "ADASYN": ADASYN}[sampler_name](random_state=int(seed))
     rows, store = [], {}

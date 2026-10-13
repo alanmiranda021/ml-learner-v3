@@ -5,6 +5,7 @@ import json
 import platform
 import subprocess
 import uuid
+from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -15,6 +16,11 @@ def json_bytes(obj):
 
 
 def manifest(df, config, folds, metrics):
+    project = Path(__file__).resolve().parents[1]
+    code_hash = hashlib.sha256()
+    for path in sorted((project / "core").glob("*.py")):
+        code_hash.update(path.name.encode())
+        code_hash.update(path.read_bytes())
     versions = {}
     for p in ("numpy", "pandas", "scipy", "scikit-learn", "imbalanced-learn", "streamlit", "shap"):
         try:
@@ -33,7 +39,7 @@ def manifest(df, config, folds, metrics):
                             + json_bytes({"columns": list(df.columns), "dtypes": list(map(str, df.dtypes))})).hexdigest()
     return {"schema_version": 1, "experiment_id": str(uuid.uuid4()), "timestamp": timestamp,
             "config_hash": hashlib.sha256(json_bytes(config)).hexdigest(), "dataset_hash": digest,
-            "config": config, "git_commit": commit, "python": platform.python_version(),
+            "config": config, "git_commit": commit, "core_source_hash": code_hash.hexdigest(), "python": platform.python_version(),
             "hardware": {"machine": platform.machine(), "platform": platform.platform()},
             "versions": versions, "folds": folds, "metrics": metrics,
             "warnings": ["Dados sintéticos e benchmarks não comprovam validade física ou generalização no domínio real."]}
