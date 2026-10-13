@@ -78,5 +78,5 @@ def build_preprocessor(num_cols, cat_cols, scaler="Z-score (Standard)", winsor=T
     tfs = [("num", Pipeline(steps), list(num_cols))]
     if cat_cols:
         tfs.append(("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
-                                     ("oh", OneHotEncoder(handle_unknown="ignore"))]), list(cat_cols)))
+                                     ("oh", OneHotEncoder(handle_unknown="ignore", sparse_output=False))]), list(cat_cols)))
     return ColumnTransformer(tfs)
