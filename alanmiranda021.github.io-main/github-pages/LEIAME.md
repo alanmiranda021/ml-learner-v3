@@ -1,5 +1,11 @@
 # ML Learner — laboratório do portfólio
 
+## Laboratório naval — Artigo 3 adaptado
+
+No modo **Científico**, abra a aba **Laboratório — Artigo 3 (naval)**. A tabela deve conter os seis preditores navais e `fuel_consumption`; `CO2_emissions` é excluída obrigatoriamente. A nova aba roda E1–E4b, E3-orig diagnóstico e controles gaussianos, com validação aninhada, teste final reservado e um PDF por execução. Resultados são exploratórios.
+
+O navegador permite apenas o perfil rápido (células por tipo de navio, SAE limitado a 50 iterações). O completo usa navio × rota e deve ser executado localmente. Consulte [SUPOSICOES.md](SUPOSICOES.md) para escolhas e limites. Para executar sem interface, nesta pasta: `python naval_cli.py Dados_navio_nig.mat --mode completo --output naval.pdf`.
+
 A página de apresentação é `projects/ml-learner.html`. Ela inicia `github-pages/index.html` sob demanda, usando Stlite/Pyodide para executar Python no navegador.
 
 ## Visualizar localmente

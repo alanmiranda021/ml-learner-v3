@@ -71,7 +71,10 @@ def smooth_columns(df, cols, method="Média móvel", window=5):
     return out
 
 
-def build_preprocessor(num_cols, cat_cols, scaler="Z-score (Standard)", winsor=True, k=1.5, pca=False):
+def build_preprocessor(num_cols, cat_cols, scaler="Z-score (Standard)", winsor=True, k=1.5, pca=False,
+                       kpca=False, kpca_gamma=.1, kpca_components=5):
+    if pca and kpca:
+        raise ValueError("Escolha PCA ou KPCA, não ambos no pré-processamento.")
     steps = [("imp", SimpleImputer(strategy="median", keep_empty_features=True))]
     if winsor:
         steps.append(("win", Winsorizer(k)))
@@ -83,4 +86,9 @@ def build_preprocessor(num_cols, cat_cols, scaler="Z-score (Standard)", winsor=T
     if cat_cols:
         tfs.append(("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent", keep_empty_features=True)),
                                      ("oh", OneHotEncoder(handle_unknown="ignore", sparse_output=False))]), list(cat_cols)))
-    return ColumnTransformer(tfs)
+    pre = ColumnTransformer(tfs)
+    if kpca:
+        from core.reduction import ValidatedReduction
+        return Pipeline([("pre", pre), ("kpca", ValidatedReduction("kpca", kpca_components,
+                         kpca_gamma, require_dim_reduction=True))])
+    return pre

@@ -39,6 +39,17 @@ def make_pipeline(pre, model, grid=None, tune=False, cv_inner=5, task="regressio
     return pipe
 
 
+def cell_cv_indices(labels, k=5, repeats=1, seed=42):
+    """Dobras repetidas por célula, inclusive para alvos contínuos."""
+    labels = np.asarray(labels)
+    if labels.ndim != 1 or len(labels) == 0 or k < 2 or repeats < 1:
+        raise ValueError("Rótulos de célula, dobras ou repetições inválidos.")
+    if pd.Series(labels).value_counts().min() < k:
+        raise ValueError(f"Célula com poucas linhas para {k} dobras estratificadas.")
+    return [(a, b) for r in range(repeats)
+            for a, b in StratifiedKFold(k, shuffle=True, random_state=seed+r).split(np.zeros(len(labels)), labels)]
+
+
 def reg_metrics(y, p):
     return {"R2": r2_score(y, p), "RMSE": float(np.sqrt(mean_squared_error(y, p))), "MAE": mean_absolute_error(y, p), "MedAE": median_absolute_error(y, p)}
 

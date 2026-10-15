@@ -34,3 +34,28 @@ CLASSIFICATION = {
     "Gradient Boosting": (HistGradientBoostingClassifier(random_state=0), {"max_iter": [100, 300], "learning_rate": [0.05, 0.1]}),
     "Rede Neural (MLP)": (MLPClassifier(max_iter=1000, random_state=0), {"hidden_layer_sizes": [(32,), (64, 32)], "alpha": [1e-4, 1e-2]}),
 }
+
+
+def naval_model(name, random_state=42):
+    """Catálogo isolado do protocolo adaptado; métricas na escala original."""
+    from sklearn.base import clone
+    from sklearn.compose import TransformedTargetRegressor
+    from sklearn.preprocessing import StandardScaler
+    from scipy.stats import randint
+    if name not in ("SVR (RBF)", "Random Forest", "Rede Neural (MLP)", "KNN"):
+        raise ValueError(f"Modelo naval desconhecido: {name}")
+    model, grid = REGRESSION[name]
+    model = clone(model)
+    if "random_state" in model.get_params():
+        model.set_params(random_state=random_state)
+    if name in ("SVR (RBF)", "Rede Neural (MLP)"):
+        model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
+        grid = {"regressor__"+k: v for k, v in grid.items()}
+    if name == "SVR (RBF)":
+        grid = {"regressor__C": [2.**i for i in range(-5, 16, 2)],
+                "regressor__gamma": ["scale", .01, .1], "regressor__epsilon": [.01, .1]}
+    if name == "Random Forest":
+        model.set_params(n_jobs=1)
+        grid = {"n_estimators": randint(50, 301), "min_samples_leaf": [1, 2, 3, 5, 8],
+                "max_features": [1., .5, "sqrt"]}
+    return model, grid

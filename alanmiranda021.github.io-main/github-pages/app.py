@@ -148,8 +148,14 @@ with st.sidebar:
     modo = st.radio("Como quer trabalhar?", ["🔬 Científico", "🚀 Automático", "🛠️ Manual", "📦 Usar / retreinar .joblib"], label_visibility="collapsed")
 
 if modo.startswith("🔬"):
-    from scientific_ui import render_scientific
-    render_scientific(df)
+    scientific, naval = st.tabs(["Experimento científico", "Laboratório — Artigo 3 (naval)"])
+    with scientific:
+        from scientific_ui import render_scientific
+        render_scientific(df)
+    with naval:
+        from naval_ui import render_naval
+        source_hash = hashlib.sha256(b"".join(f.getvalue() for f in files)).hexdigest() if len(files) == 1 else ""
+        render_naval(df, ", ".join(f.name for f in files), source_hash)
     st.stop()
 
 if modo.startswith("🚀"):

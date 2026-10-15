@@ -44,7 +44,8 @@ try {
     'core/task_config.py', 'core/data_inspection.py', 'core/splitters.py',
     'core/reduction.py', 'core/features.py', 'core/signal_processing.py',
     'core/augmentation.py', 'core/sparse_autoencoder.py', 'core/experiments.py',
-    'core/experiment_tracking.py', 'core/explain.py'];
+    'core/experiment_tracking.py', 'core/explain.py', 'naval_ui.py',
+    'core/sae.py', 'core/augment.py', 'core/exp_artigo3.py'];
   const files = Object.fromEntries(await Promise.all(paths.map(async (path) => {
     const response = await fetch(new URL(path, import.meta.url));
     if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);

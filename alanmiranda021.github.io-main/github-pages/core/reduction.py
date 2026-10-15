@@ -8,12 +8,14 @@ KPCA_GAMMAS = [.01, .1, 1., 10., 100.]
 
 
 class ValidatedReduction(BaseEstimator, TransformerMixin):
-    def __init__(self, method="none", n_components=2, gamma=.1, max_samples=3000, random_state=42):
+    def __init__(self, method="none", n_components=2, gamma=.1, max_samples=3000, random_state=42,
+                 require_dim_reduction=False):
         self.method = method
         self.n_components = n_components
         self.gamma = gamma
         self.max_samples = max_samples
         self.random_state = random_state
+        self.require_dim_reduction = require_dim_reduction
 
     def fit(self, X, y=None):
         X = X.toarray() if hasattr(X, "toarray") else np.asarray(X)
@@ -32,6 +34,8 @@ class ValidatedReduction(BaseEstimator, TransformerMixin):
         if not fraction and (not isinstance(n, (int, np.integer)) or isinstance(n, bool) or not 1 <= n <= limit):
             raise ValueError(f"n_components={n} inválido neste fold; limite={limit}. Não houve truncamento.")
         if self.method == "kpca":
+            if self.require_dim_reduction and n >= X.shape[1]:
+                raise ValueError("KPCA exige n_components menor que a dimensão de entrada.")
             if not np.isfinite(self.gamma) or self.gamma <= 0:
                 raise ValueError("gamma deve ser positivo e finito.")
             if len(X) > self.max_samples:

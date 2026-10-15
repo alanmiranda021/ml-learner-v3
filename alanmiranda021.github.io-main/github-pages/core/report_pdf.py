@@ -31,6 +31,162 @@ def T(x):  # texto seguro para fontes padrão (Latin-1/cp1252) e para o parser X
     return escape(str(x).encode("cp1252", "replace").decode("cp1252"))
 
 
+def naval_pdf(result):
+    """Relatório único do laboratório naval; não modifica o relatório legado."""
+    import json
+    from reportlab.platypus import SimpleDocTemplate
+    buf = io.BytesIO()
+    story = []
+    def title(text):
+        story.extend([Spacer(1, 8), P(text, H1)])
+    def table(rows, columns=None):
+        frame = pd.DataFrame(rows)
+        if frame.empty:
+            story.append(P("Sem resultados nesta execução; consulte falhas e limitações."))
+            return
+        if columns:
+            frame = frame.reindex(columns=columns)
+        for c in frame:
+            frame[c] = frame[c].map(lambda v: _fmt(v, 5))
+        story.append(_table(frame, [16.5*cm/len(frame.columns)]*len(frame.columns), font=6.5))
+    def graph_xy(x, y, label):
+        if not len(x):
+            return
+        drawing = Drawing(460, 180)
+        plot = ScatterPlot()
+        plot.x, plot.y, plot.width, plot.height = 55, 25, 380, 130
+        plot.data = [list(zip(map(float, x), map(float, y)))]
+        plot.lines[0].strokeColor = None
+        plot.lines[0].symbol = makeMarker("FilledCircle", size=2.5, fillColor=ACC, strokeColor=None)
+        plot.xValueAxis.labels.fontSize = plot.yValueAxis.labels.fontSize = 6
+        drawing.add(plot)
+        drawing.add(String(5, 165, label, fontSize=9))
+        story.append(drawing)
+    cfg, prov = result["config"]["effective"], result["manifest"]
+    title("ML Learner - Laboratório naval exploratório")
+    story.append(P("protocolo do Artigo 3 adaptado"))
+    story.append(P(f"Arquivo: {cfg['filename']} | Data: {prov['timestamp']} | App: naval-v1"))
+    story.append(P(f"SHA-256 da tabela normalizada: {result['dataset_sha256']}"))
+    story.append(P(f"SHA-256 do arquivo: {result.get('source_sha256') or 'não disponível (entrada DataFrame)'}"))
+    title("Resumo e formulação")
+    story.append(P(f"Prever {cfg['target']} em combinações conhecidas. Features: {', '.join(result['config']['features'])}. Exclusões: {cfg['excluded']}."))
+    story.append(P("A tarefa original era classificação de vibrações; aqui é regressão tabular, com RMSE principal, MAE e R² na escala original. Sem filtros de sinais ou segmentação."))
+    story.append(P(f"Modo: {cfg['mode']}; células: {cfg['cell_columns']}; unidades: {cfg['units']}."))
+    title("Dados e auditoria de vazamento")
+    table(result["audit"]["dictionary"])
+    table([dict(cell=k, count=v) for k, v in result["audit"]["cells"].items()])
+    for key in ("rows", "missing", "duplicates", "co2_fuel_ratio", "co2_fuel_correlation", "correlations"):
+        if key in result["audit"]:
+            story.append(P(f"{key}: {result['audit'][key]}"))
+    title("Protocolo e partições")
+    story.append(P("Teste final real: 20%, estratificado por célula. CV externa estratificada, com CV interna e aumento refeito apenas no treino de cada dobra. Pré-processador e vocabulário ajustados somente no treino. E3-orig é a exceção deliberadamente contaminada, apresentada separadamente."))
+    story.append(P(f"Semente: {cfg['seed']}; repetições: {cfg['repeats']}; dobras externas/internas: {cfg['outer_folds']}/{cfg['inner_folds']}; sorteios: {cfg['draws']}; teste avaliado {result['config']['final_test_evaluations']} vez(es); sintéticos no teste: 0."))
+    story.append(P("Asserções de separação: " + str(all(set(d['train_indices']).isdisjoint(d['validation_indices']) for d in result['folds'])) + "; diagnóstico E3-orig mantém dependências de origem apesar de índices disjuntos. Testes de software são registrados no repositório, não inferidos deste relatório."))
+    title("Sparse Autoencoder e qualidade sintética")
+    story.append(P("Sigmoide/linear; perda = soma do erro quadrático / (2m) + L2 + beta KL. L2=0,01, beta=1, rho=0,05. Beta e rho são suposições do projeto. L-BFGS-B; neurônios escolhidos por reconstrução em validação interna da célula. Ruído na pré-ativação; s escolhido pelo menor KS médio somente no treino. Categorias por argmax, envelope observado, consumo positivo, filtro do resíduo consumo~distância em 3 desvios. Ruído gaussiano é controle independente."))
+    story.append(P("Curvas e histogramas abaixo: primeira dobra externa disponível por experimento/modelo, identificada como exemplo representativo do treino. O resumo por dobra inclui todas as gerações executadas."))
+    quality_summary = []
+    for fold in result["folds"]:
+        generated = [d for d in fold["augmentation"] if d.get("synthetic")]
+        if generated:
+            quality_summary.append(dict(scenario=fold["scenario"], model=fold["model"], fold=fold["fold"],
+                synthetic=sum(d["synthetic"] for d in generated),
+                KS=float(np.mean([np.mean(d["quality"]["ks"]) for d in generated])),
+                rejected=float(np.mean([d["rejected_fraction"] for d in generated])),
+                memory=float(np.mean([d["quality"]["memory_fraction"] for d in generated]))))
+    table(quality_summary)
+    # Record a representative external training fold for each experiment/model;
+    # all fold scores remain in the validation tables below.
+    seen = set()
+    for fold in result["folds"]:
+        key = (fold["scenario"], fold["model"])
+        if key in seen or not fold["augmentation"]:
+            continue
+        seen.add(key)
+        story.append(P(f"{key[0]} / {key[1]} - dobra {fold['fold']} (treino)"))
+        quality_rows = []
+        for d in fold["augmentation"]:
+            if not d.get("synthetic"):
+                continue
+            q = d["quality"]
+            quality_rows.append(dict(cell=d["cell"], real=d["real"], synthetic=d["synthetic"],
+                hidden=d["hidden_dim"], noise=d["noise_scale"], rejected=d["rejected_fraction"],
+                KS=float(np.mean(q["ks"])), memory=q["memory_fraction"], corr=q["correlation_frobenius"]))
+            story.append(P(f"{d['cell']}: MSE por coluna={q['mse']}; Pearson={q['pearson']}; KS={q['ks']}; vizinho médio={q['nearest_distance_mean']}; colunas={d['numeric_columns']}; convergiu={d['optimizer_success']}."))
+            history = d.get("history", [])
+            if history:
+                graph_xy(range(len(history)), [v["total"] for v in history], "Perda total SAE por iteração - " + str(d["cell"])[:60])
+                table([dict(iteration=i, **v) for i, v in enumerate(history) if i in {0, len(history)-1}])
+            real, synth = np.array(d["real_numeric"]), np.array(d["synthetic_numeric"])
+            # Comparative histograms are vector charts, independent of matplotlib.
+            for col, label in enumerate(d["numeric_columns"]):
+                edges = np.linspace(min(real[:, col].min(), synth[:, col].min()), max(real[:, col].max(), synth[:, col].max())+1e-9, 9)
+                a = np.histogram(real[:, col], edges)[0]/len(real)
+                b = np.histogram(synth[:, col], edges)[0]/len(synth)
+                drawing = Drawing(460, 130)
+                chart = VerticalBarChart()
+                chart.x, chart.y, chart.width, chart.height = 35, 20, 400, 85
+                chart.data = [a.tolist(), b.tolist()]
+                chart.bars[0].fillColor, chart.bars[1].fillColor = ACC, ACC2
+                chart.categoryAxis.categoryNames = [f"{v:.2g}" for v in edges[:-1]]
+                chart.categoryAxis.labels.fontSize = 5
+                drawing.add(chart)
+                drawing.add(String(5, 117, f"{label}: real (roxo) x sintético (verde)", fontSize=8))
+                story.append(drawing)
+        table(quality_rows)
+    title("KPCA gaussiano")
+    story.append(P("Componentes são coordenadas do kernel, não variáveis físicas. Ajuste somente após aumento do treino. Número de componentes deve ser menor que a dimensão de entrada."))
+    for fold in result["folds"]:
+        if fold["eigenvalues"]:
+            story.append(P(f"{fold['scenario']} / {fold['model']}, dobra {fold['fold']}: parâmetros={fold['params']}; autovalores={fold['eigenvalues']}"))
+    title("Resultados de validação")
+    table([r for r in result["validation"] if r["scenario"] != "E3-orig"],
+          ["scenario", "model", "RMSE", "RMSE_std", "MAE", "MAE_std", "R2", "R2_std", "complete"])
+    story.append(P("Métricas e hiperparâmetros por dobra externa (E3-orig identificado separadamente):"))
+    table([dict(scenario=d["scenario"], model=d["model"], fold=d["fold"],
+        RMSE=d["metrics"]["RMSE"], MAE=d["metrics"]["MAE"], R2=d["metrics"]["R2"],
+        inner_RMSE=d["inner_rmse"], params=str(d["params"])) for d in result["folds"]])
+    title("Ranking exploratório e empate técnico")
+    story.append(P("RMSE médio; diferenças menores que um desvio entre dobras formam empate técnico; desempate por desvio e duração. E3-orig não participa."))
+    table(result["ranking"], ["scenario", "model", "RMSE", "RMSE_std", "seconds", "technical_tie_group"])
+    title("E3 e E3-orig: diagnóstico possivelmente otimista")
+    table([r for r in result["validation"] if r["scenario"] in ("E3", "E3-orig")], ["scenario", "model", "RMSE", "RMSE_std", "MAE", "R2"])
+    title("Diferenças pareadas contra E1")
+    table(result["comparisons"], ["scenario", "model", "delta_rmse", "std", "fraction_improved", "conclusion"])
+    title("Teste final do vencedor da validação")
+    if result["test"]:
+        test = result["test"]
+        story.append(P(f"{test['scenario']} / {test['model']}: {test['metrics']}; parâmetros={test['params']}"))
+        pred = result["predictions"]
+        actual, predicted = np.array(pred["actual"]), np.array(pred["predicted"])
+        residual = actual-predicted
+        story.extend([_scatter(actual, predicted), _hist(residual)])
+        graph_xy(predicted, residual, "Resíduos (y) x previsto (x)")
+        errors = pd.DataFrame(dict(cell=pred["cells"], absolute=np.abs(residual), squared=residual**2))
+        table([dict(cell=c, MAE=float(g.absolute.mean()), RMSE=float(np.sqrt(g.squared.mean()))) for c, g in errors.groupby("cell")])
+    else:
+        story.append(P("Teste não avaliado: nenhum vencedor completo ou ajuste falhou."))
+    title("Sensibilidade: rota e tipo de navio deixados de fora")
+    table(result["sensitivity"])
+    title("Publicado x adaptado: métricas não comparáveis")
+    story.append(P("Contexto fornecido pelo protocolo: DOI 10.1007/s10921-024-01131-3. Acurácia publicada em classificação não se compara a RMSE naval."))
+    table([dict(experiment=e, SVM_accuracy_percent=s, RF_accuracy_percent=r) for e, s, r in [("E1",90.83,95.),("E2",98.03,99.83),("E3",98.72,99.94),("E4",98.72,96.06)]])
+    title("Discussão e conclusão")
+    gains = [r for r in result["comparisons"] if r["conclusion"] != "sem ganho demonstrado"]
+    story.append(P("Melhora consistente em pelo menos 80% das dobras: " + str([(r['scenario'], r['model']) for r in gains]) if gains else "Sem ganho demonstrado pela regra de 80% das dobras."))
+    title("Limitações e falhas")
+    for limitation in result["limitations"]:
+        story.append(P(limitation))
+    table(result["failures"], ["scenario", "model", "stage", "fold", "error"])
+    title("Proveniência e configuração completa")
+    story.append(P(f"Duração: {result['seconds']:.3f} s; Python: {prov['python']}; versões: {prov['versions']}; commit: {prov['git_commit']}; hash código: {prov['core_source_hash']}"))
+    for line in json.dumps(result["config"], ensure_ascii=False, indent=2, default=str).splitlines():
+        story.append(P(line, SMALL))
+    SimpleDocTemplate(buf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
+                      topMargin=1.8*cm, bottomMargin=1.8*cm).build(story, onFirstPage=_page, onLaterPages=_page)
+    return buf.getvalue()
+
+
 def P(x, st=BODY):
     return Paragraph(T(x), st)
 
