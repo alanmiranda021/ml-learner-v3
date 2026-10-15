@@ -39,6 +39,14 @@ const { chromium } = require(process.argv[2] || 'playwright-core');
       const download = page.getByRole('button', {name: 'Baixar relatório naval (.pdf)'});
       await download.waitFor({timeout: 240000});
       assert.equal(await page.locator('[data-testid="stException"]').count(), 0);
+      const transfer = page.waitForEvent('download', {timeout: 30000});
+      await download.click();
+      const artifact = await transfer;
+      assert.equal(await artifact.failure(), null);
+      const stream = await artifact.createReadStream();
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      assert(Buffer.concat(chunks).subarray(0, 4).equals(Buffer.from('%PDF')));
       console.log(`Stlite execução artificial SVR: ${((Date.now()-started)/1000).toFixed(1)} s; PDF disponível.`);
     }
   } finally { await browser.close(); }
